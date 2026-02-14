@@ -82,9 +82,22 @@ html, body {
     color: white;
 }
 
-.form-control:focus {
-    background-color: #34495e;
-    color: white;
-    border-color: var(--primary-green);
-    box-shadow: none;
+@keyframes flash-green {
+    0% { background-color: rgba(46, 204, 113, 0.4); }
+    100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+    0% { background-color: rgba(231, 76, 60, 0.4); }
+    100% { background-color: transparent; }
+}
+
+.price-up {
+    color: var(--primary-green) !important;
+    animation: flash-green 1s;
+}
+
+.price-down {
+    color: var(--danger) !important;
+    animation: flash-red 1s;
 }

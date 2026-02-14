@@ -1,36 +1,89 @@
 @page "/"
 @using Microsoft.AspNetCore.Authorization
+@using GreenTrade.Client.Services
+@using GreenTrade.Client.Components
+@using GreenTrade.Shared.DTOs
 @attribute [Authorize]
+@inject MarketDataClientService MarketService
+@implements IDisposable
 
 <PageTitle>Dashboard - GreenTrade</PageTitle>
 
 <div class="row">
-    <div class="col-md-12">
-        <h1 class="text-success mb-4">Dashboard de Trading</h1>
-        <p class="text-muted">Bem-vindo à plataforma GreenTrade. Aqui você pode acompanhar o mercado de commodities agrícolas.</p>
+    <div class="col-md-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="text-success mb-1">Dashboard de Trading</h1>
+            <p class="text-muted">Preços em tempo real das commodities agrícolas.</p>
+        </div>
+        <div class="text-end">
+            <span class="badge @(MarketService.State == Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected ? "bg-success" : "bg-warning")">
+                <i class="fas fa-circle me-1"></i>
+                @(MarketService.State == Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected ? "Conectado" : "Reconectando...")
+            </span>
+        </div>
     </div>
 </div>
 
-<div class="row mt-4">
+<div class="row mt-4 g-3">
     <div class="col-md-4">
-        <div class="card p-4">
-            <h5 class="text-success"><i class="fas fa-chart-line"></i> Mercado</h5>
-            <p class="display-6 mt-3">R$ 5,24</p>
-            <small class="text-muted">USD/BRL - Tempo Real</small>
-        </div>
+        <MarketCard Title="Café Arábica" 
+                    Ticker="KC" 
+                    Price="arabicaPrice.CurrentPrice" 
+                    Change="arabicaPrice.ChangePercentage" 
+                    LastUpdate="arabicaPrice.Timestamp" />
     </div>
     <div class="col-md-4">
-        <div class="card p-4">
-            <h5 class="text-success"><i class="fas fa-coffee"></i> Café Arábica</h5>
-            <p class="display-6 mt-3">R$ 1.250,00</p>
-            <small class="text-muted">Saca 60kg - NY</small>
-        </div>
+        <MarketCard Title="Café Conilon" 
+                    Ticker="C8" 
+                    Price="conilonPrice.CurrentPrice" 
+                    Change="conilonPrice.ChangePercentage" 
+                    LastUpdate="conilonPrice.Timestamp" />
     </div>
     <div class="col-md-4">
-        <div class="card p-4">
-            <h5 class="text-success"><i class="fas fa-bell"></i> Alertas Ativos</h5>
-            <p class="display-6 mt-3">3</p>
-            <small class="text-muted">Notificações configuradas</small>
-        </div>
+        <MarketCard Title="Dólar Comercial" 
+                    Ticker="USDBRL" 
+                    Price="dollarPrice.CurrentPrice" 
+                    Change="dollarPrice.ChangePercentage" 
+                    LastUpdate="dollarPrice.Timestamp" />
     </div>
 </div>
+
+<div class="row mt-5">
+    <div class="col-md-7">
+        <PriceCalculator CurrentArabica="arabicaPrice.CurrentPrice" 
+                         CurrentDollar="dollarPrice.CurrentPrice" />
+    </div>
+    <div class="col-md-5">
+        <MarketChart Title="Café Arábica" 
+                     Ticker="KC" 
+                     CurrentPrice="arabicaPrice.CurrentPrice" />
+    </div>
+</div>
+
+@code {
+    private PriceUpdateDto arabicaPrice = new() { Ticker = "KC", CurrentPrice = 185.50m };
+    private PriceUpdateDto conilonPrice = new() { Ticker = "C8", CurrentPrice = 145.20m };
+    private PriceUpdateDto dollarPrice = new() { Ticker = "USDBRL", CurrentPrice = 5.25m };
+
+    protected override async Task OnInitializedAsync()
+    {
+        MarketService.OnPriceUpdate += HandlePriceUpdate;
+        await MarketService.StartAsync();
+    }
+
+    private void HandlePriceUpdate(PriceUpdateDto update)
+    {
+        switch (update.Ticker)
+        {
+            case "KC": arabicaPrice = update; break;
+            case "C8": conilonPrice = update; break;
+            case "USDBRL": dollarPrice = update; break;
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        MarketService.OnPriceUpdate -= HandlePriceUpdate;
+    }
+}

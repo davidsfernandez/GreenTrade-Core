@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Commodity> Commodities { get; set; }
     public DbSet<PriceAlert> PriceAlerts { get; set; }
+    public DbSet<MarketSettings> MarketSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +26,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().ToTable("Users");
         modelBuilder.Entity<Commodity>().ToTable("Commodities");
         modelBuilder.Entity<PriceAlert>().ToTable("PriceAlerts");
+        modelBuilder.Entity<MarketSettings>().ToTable("MarketSettings");
 
         // Relationships are already defined by DataAnnotations/Conventions, 
         // but we can be explicit here for better clarity.

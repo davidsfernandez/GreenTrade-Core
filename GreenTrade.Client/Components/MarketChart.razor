@@ -1,0 +1,45 @@
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i> Gráfico em Tempo Real: @Title</h5>
+        <span class="badge bg-success">LIVE</span>
+    </div>
+    <div class="card-body p-0">
+        <div id="@containerId" style="width: 100%; height: 300px;"></div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Ticker { get; set; } = "";
+    [Parameter] public decimal CurrentPrice { get; set; }
+
+    private string containerId = $"chart-{Guid.NewGuid():N}";
+    private bool isInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("chartInterop.initChart", containerId, Title);
+            isInitialized = true;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (isInitialized && CurrentPrice > 0)
+        {
+            // Lightweight charts expect seconds for time
+            var time = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            await JS.InvokeVoidAsync("chartInterop.updateChart", containerId, time, (double)CurrentPrice);
+        }
+    }
+
+    public void Dispose()
+    {
+        // Cleanup could be implemented in JS if needed
+    }
+}

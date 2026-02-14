@@ -1,8 +1,10 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using GreenTrade.Server.Data;
+using GreenTrade.Server.Hubs;
 using GreenTrade.Server.Middleware;
 using GreenTrade.Server.Services;
+using GreenTrade.Shared.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -17,6 +19,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
+builder.Services.AddSignalR();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -51,6 +55,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Services
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IPriceAlertService, PriceAlertService>();
+builder.Services.AddSingleton<IPriceCalculatorService, PriceCalculatorService>();
+builder.Services.AddHostedService<MarketDataService>();
 
 // Auth
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -98,6 +105,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<MarketHub>("/hubs/market");
 app.MapFallbackToFile("index.html");
 
 // Auto-migration and Seeding

@@ -1,0 +1,28 @@
+@using GreenTrade.Client.Services
+@using Microsoft.AspNetCore.SignalR.Client
+@inject MarketDataClientService MarketService
+
+<span class="badge @StatusClass">
+    <i class="fas fa-plug me-1"></i>
+    @StatusText
+</span>
+
+@code {
+    private string StatusText => MarketService.State switch
+    {
+        HubConnectionState.Connected => "Conectado em tempo real",
+        HubConnectionState.Disconnected => "Desconectado",
+        HubConnectionState.Connecting => "Conectando...",
+        HubConnectionState.Reconnecting => "Tentando reconexão...",
+        _ => "Status Desconhecido"
+    };
+
+    private string StatusClass => MarketService.State switch
+    {
+        HubConnectionState.Connected => "bg-success",
+        HubConnectionState.Disconnected => "bg-danger",
+        HubConnectionState.Connecting => "bg-info",
+        HubConnectionState.Reconnecting => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+}

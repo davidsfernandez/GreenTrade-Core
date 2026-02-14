@@ -34,5 +34,16 @@ public static class DbSeeder
             context.Users.Add(admin);
             await context.SaveChangesAsync();
         }
+
+        // Seed Market Settings
+        if (!await context.MarketSettings.AnyAsync())
+        {
+            context.MarketSettings.Add(new MarketSettings
+            {
+                CoffeeBasis = -10.00m, // Example: -10 BRL discount relative to exchange
+                ServiceFeePercentage = 0.5m
+            });
+            await context.SaveChangesAsync();
+        }
     }
 }

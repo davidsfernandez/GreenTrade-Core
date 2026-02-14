@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using GreenTrade.Client;
 using GreenTrade.Client.Services;
+using GreenTrade.Shared.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -12,6 +13,8 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<MarketDataClientService>();
+builder.Services.AddSingleton<IPriceCalculatorService, PriceCalculatorService>();
 builder.Services.AddScoped<FormatterService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddAuthorizationCore();
