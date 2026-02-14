@@ -1,0 +1,6 @@
+@GreenTrade.Server_HostAddress = http://localhost:5199
+
+GET {{GreenTrade.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

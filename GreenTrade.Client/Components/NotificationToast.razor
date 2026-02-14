@@ -1,0 +1,46 @@
+@using GreenTrade.Client.Services
+@inject NotificationService NotificationService
+@implements IDisposable
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+        <div class="toast show align-items-center text-white bg-@cssClass border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    @message
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" @onclick="() => message = null"></button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string? message;
+    private string? cssClass;
+
+    protected override void OnInitialized()
+    {
+        NotificationService.OnShow += ShowToast;
+    }
+
+    private void ShowToast(string msg, string type)
+    {
+        message = msg;
+        cssClass = type;
+        StateHasChanged();
+        
+        // Auto-hide after 3 seconds
+        Task.Delay(3000).ContinueWith(_ => 
+        {
+            message = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnShow -= ShowToast;
+    }
+}

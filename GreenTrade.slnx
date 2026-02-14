@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="GreenTrade.Client/GreenTrade.Client.csproj" />
+  <Project Path="GreenTrade.Server/GreenTrade.Server.csproj" />
+  <Project Path="GreenTrade.Shared/GreenTrade.Shared.csproj" />
+</Solution>

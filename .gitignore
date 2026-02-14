@@ -1,0 +1,14 @@
+# .gitignore
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+appsettings.Development.json
+out/
+dist/
+.env
+.gemini/
+*.md

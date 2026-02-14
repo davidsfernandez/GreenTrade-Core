@@ -1,0 +1,75 @@
+@page "/login"
+@layout Layout.MainLayout
+@inject GreenTrade.Client.Services.IAuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="login-container">
+    <div class="card">
+        <div class="text-center mb-4">
+            <h2 class="text-success"><i class="fas fa-leaf"></i> GreenTrade</h2>
+            <p class="text-muted">Acesso à Plataforma</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <EditForm Model="loginRequest" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+            
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText @bind-Value="loginRequest.Email" class="form-control" placeholder="seu@email.com" />
+                <ValidationMessage For="@(() => loginRequest.Email)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Senha</label>
+                <InputText @bind-Value="loginRequest.Password" type="password" class="form-control" placeholder="******" />
+                <ValidationMessage For="@(() => loginRequest.Password)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mt-3" disabled="@isBusy">
+                @if (isBusy)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                Entrar
+            </button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private GreenTrade.Shared.DTOs.LoginRequest loginRequest = new();
+    private string? errorMessage;
+    private bool isBusy;
+
+    private async Task HandleLogin()
+    {
+        isBusy = true;
+        errorMessage = null;
+
+        try
+        {
+            var result = await AuthService.Login(loginRequest);
+            if (result.Success)
+            {
+                Navigation.NavigateTo("");
+            }
+            else
+            {
+                errorMessage = "Credenciais inválidas ou erro no servidor.";
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Erro ao conectar com o servidor.";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

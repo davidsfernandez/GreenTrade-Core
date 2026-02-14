@@ -1,0 +1,60 @@
+@inherits LayoutComponentBase
+@using GreenTrade.Client.Components
+@inject GreenTrade.Client.Services.IAuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="main-layout">
+    <NotificationToast />
+    <AuthorizeView>
+        <Authorized>
+            <nav class="sidebar">
+                <div class="p-4">
+                    <h3 class="text-success"><i class="fas fa-leaf"></i> GreenTrade</h3>
+                </div>
+                <ul class="nav flex-column mt-4">
+                    <li class="nav-item">
+                        <NavLink class="nav-link text-light" href="" Match="NavLinkMatch.All">
+                            <i class="fas fa-chart-line me-2"></i> Dashboard
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link text-light" href="commodities">
+                            <i class="fas fa-wheat-awn me-2"></i> Commodities
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link text-light" href="alerts">
+                            <i class="fas fa-bell me-2"></i> Alertas
+                        </NavLink>
+                    </li>
+                </ul>
+            </nav>
+
+            <main class="content">
+                <header class="top-bar">
+                    <div>
+                        <span class="text-muted">Bem-vindo, </span>
+                        <strong>@context.User.Identity?.Name</strong>
+                    </div>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="Logout">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </button>
+                </header>
+                <div class="mt-4">
+                    @Body
+                </div>
+            </main>
+        </Authorized>
+        <NotAuthorized>
+            @Body
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private async Task Logout()
+    {
+        await AuthService.Logout();
+        Navigation.NavigateTo("login");
+    }
+}
