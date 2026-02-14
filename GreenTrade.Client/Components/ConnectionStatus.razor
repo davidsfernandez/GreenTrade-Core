@@ -2,27 +2,41 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @inject MarketDataClientService MarketService
 
-<span class="badge @StatusClass">
-    <i class="fas fa-plug me-1"></i>
-    @StatusText
-</span>
+<div class="d-inline-flex align-items-center px-3 py-1 rounded-pill shadow-sm @StatusBg" style="transition: all 0.5s ease;">
+    <div class="spinner-grow spinner-grow-sm me-2 @StatusText" role="status" style="width: 8px; height: 8px; display: @(MarketService.State == HubConnectionState.Connected ? "none" : "block")"></div>
+    <i class="fas fa-circle me-2 @StatusText" style="font-size: 8px; display: @(MarketService.State == HubConnectionState.Connected ? "block" : "none")"></i>
+    <span class="small fw-bold @StatusText">@Label</span>
+</div>
 
 @code {
-    private string StatusText => MarketService.State switch
+    private string Label => MarketService.State switch
     {
-        HubConnectionState.Connected => "Conectado em tempo real",
-        HubConnectionState.Disconnected => "Desconectado",
+        HubConnectionState.Connected => "Sincronizado",
         HubConnectionState.Connecting => "Conectando...",
-        HubConnectionState.Reconnecting => "Tentando reconexão...",
-        _ => "Status Desconhecido"
+        HubConnectionState.Reconnecting => "Reconectando...",
+        _ => "Desconectado"
     };
 
-    private string StatusClass => MarketService.State switch
+    private string StatusBg => MarketService.State switch
     {
-        HubConnectionState.Connected => "bg-success",
-        HubConnectionState.Disconnected => "bg-danger",
-        HubConnectionState.Connecting => "bg-info",
-        HubConnectionState.Reconnecting => "bg-warning text-dark",
-        _ => "bg-secondary"
+        HubConnectionState.Connected => "bg-success-subtle",
+        HubConnectionState.Connecting => "bg-info-subtle",
+        HubConnectionState.Reconnecting => "bg-warning-subtle",
+        _ => "bg-danger-subtle"
+    };
+
+    private string StatusText => MarketService.State switch
+    {
+        HubConnectionState.Connected => "text-success",
+        HubConnectionState.Connecting => "text-info",
+        HubConnectionState.Reconnecting => "text-warning",
+        _ => "text-danger"
     };
 }
+
+<style>
+    .bg-success-subtle { background-color: #e8f5e9; }
+    .bg-info-subtle { background-color: #e1f5fe; }
+    .bg-warning-subtle { background-color: #fff8e1; }
+    .bg-danger-subtle { background-color: #ffebee; }
+</style>

@@ -5,57 +5,73 @@
 
 <div class="main-layout">
     <NotificationToast />
+    
     <AuthorizeView>
         <Authorized>
+            <!-- Desktop Sidebar -->
             <nav class="sidebar">
-                <div class="p-4">
-                    <h3 class="text-success"><i class="fas fa-leaf"></i> GreenTrade</h3>
+                <div class="mb-5 px-2">
+                    <h3 class="text-white mb-0"><i class="fas fa-leaf me-2"></i>GreenTrade</h3>
+                    <small class="text-white-50">Plataforma de Café</small>
                 </div>
-                <ul class="nav flex-column mt-4">
-                    <li class="nav-item">
-                        <NavLink class="nav-link text-light" href="" Match="NavLinkMatch.All">
-                            <i class="fas fa-chart-line me-2"></i> Dashboard
-                        </NavLink>
-                    </li>
-                    <li class="nav-item">
-                        <NavLink class="nav-link text-light" href="commodities">
-                            <i class="fas fa-wheat-awn me-2"></i> Commodities
-                        </NavLink>
-                    </li>
-                    <li class="nav-item">
-                        <NavLink class="nav-link text-light" href="alerts">
-                            <i class="fas fa-bell me-2"></i> Alertas
-                        </NavLink>
-                    </li>
-                </ul>
+                
+                <NavMenu />
+
+                <div class="mt-auto pt-5">
+                    <button class="btn btn-outline-light w-100" @onclick="Logout">
+                        <i class="fas fa-sign-out-alt me-2"></i> Sair
+                    </button>
+                </div>
             </nav>
 
-            <main class="content">
-                <header class="top-bar">
+            <main class="content-container">
+                <header class="d-flex justify-content-between align-items-center mb-4 d-none d-md-flex">
                     <div>
-                        <span class="text-muted">Bem-vindo, </span>
-                        <strong>@context.User.Identity?.Name</strong>
+                        <h4 class="mb-0">@GetGreeting(), @context.User.Identity?.Name!</h4>
+                        <p class="text-muted small">@DateTime.Now.ToString("D", new System.Globalization.CultureInfo("pt-BR"))</p>
                     </div>
-                    <button class="btn btn-outline-danger btn-sm" @onclick="Logout">
-                        <i class="fas fa-sign-out-alt"></i> Sair
-                    </button>
                 </header>
-                <div class="mt-4">
-                    @Body
-                </div>
-                <footer class="mt-5 pt-3 border-top text-center text-muted small">
-                    <ConnectionStatus />
-                    <p class="mt-2">&copy; 2026 GreenTrade Core - Monitor de Commodities Agrícolas</p>
-                </footer>
+
+                @Body
             </main>
+
+            <!-- Mobile Bottom Bar -->
+            <nav class="bottom-nav">
+                <NavLink class="bottom-nav-item" href="" Match="NavLinkMatch.All">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Início</span>
+                </NavLink>
+                <NavLink class="bottom-nav-item" href="alerts">
+                    <i class="fas fa-bell"></i>
+                    <span>Alertas</span>
+                </NavLink>
+                <NavLink class="bottom-nav-item" href="profile">
+                    <i class="fas fa-user"></i>
+                    <span>Perfil</span>
+                </NavLink>
+                <NavLink class="bottom-nav-item" href="help">
+                    <i class="fas fa-question-circle"></i>
+                    <span>Ajuda</span>
+                </NavLink>
+            </nav>
         </Authorized>
         <NotAuthorized>
-            @Body
+            <div class="w-100">
+                @Body
+            </div>
         </NotAuthorized>
     </AuthorizeView>
 </div>
 
 @code {
+    private string GetGreeting()
+    {
+        var hour = DateTime.Now.Hour;
+        if (hour < 12) return "Bom dia";
+        if (hour < 18) return "Boa tarde";
+        return "Boa noite";
+    }
+
     private async Task Logout()
     {
         await AuthService.Logout();
