@@ -106,17 +106,18 @@
 </div>
 
 <div class="row">
-    <!-- Main Chart -->
+    <!-- Main Chart & RSI -->
     <div class="col-12 col-lg-8 order-2 order-md-3 order-lg-2 mb-4">
         <div class="card h-100">
             <div class="card-header d-flex align-items-center justify-content-between pb-0">
                 <div class="card-title mb-0">
                     <h5 class="m-0 me-2">Histórico de Preços (TradingView)</h5>
-                    <small class="text-muted">Arábica (KC) com SMA 14</small>
+                    <small class="text-muted">Arábica (KC) com SMA 14 e RSI 14</small>
                 </div>
             </div>
             <div class="card-body">
                 <div id="incomeChart" style="height: 300px; width: 100%;"></div>
+                <div id="rsiChart" style="height: 150px; width: 100%; margin-top: 10px;"></div>
             </div>
         </div>
     </div>
@@ -189,7 +190,6 @@
     private PriceUpdateDto conilonPrice = new() { Ticker = "C8", CurrentPrice = 145.20m };
     private PriceUpdateDto dollarPrice = new() { Ticker = "USDBRL", CurrentPrice = 5.25m };
 
-    // Calculator State
     private decimal nyPrice;
     private decimal dollarRate;
     private decimal basis;
@@ -198,7 +198,7 @@
     // Chart Data
     private List<ChartDataPoint> chartData = new();
     private List<decimal> priceHistory = new();
-    private int smaPeriod = 14;
+    private int period = 14;
 
     protected override async Task OnInitializedAsync()
     {
@@ -214,16 +214,13 @@
         nyPrice = arabicaPrice.CurrentPrice;
         dollarRate = dollarPrice.CurrentPrice;
         
-        // Seed initial history
+        // Seed initial
         AddPriceHistory(arabicaPrice.CurrentPrice);
 
         try
         {
             var settings = await Http.GetFromJsonAsync<MarketSettings>("api/marketsettings");
-            if (settings != null)
-            {
-                basis = settings.CoffeeBasis;
-            }
+            if (settings != null) basis = settings.CoffeeBasis;
         }
         catch { }
     }
@@ -232,10 +229,17 @@
     {
         if (firstRender)
         {
-            // Initialize Chart
+            // 1. Create Main Chart
             await JSRuntime.InvokeVoidAsync("window.appInterop.createTradingViewChart", "incomeChart", chartData);
-            // Initialize SMA Series (empty initially)
+            
+            // 2. Create SMA Overlay (Empty initially)
             await JSRuntime.InvokeVoidAsync("window.appInterop.addIndicatorSeries", "incomeChart", "SMA", "#ff9f43", new List<object>()); 
+
+            // 3. Create RSI Chart (Separate Pane)
+            await JSRuntime.InvokeVoidAsync("window.appInterop.createRsiChart", "rsiChart", new List<object>());
+
+            // 4. Sync Charts
+            await JSRuntime.InvokeVoidAsync("window.appInterop.syncCharts", "incomeChart", "rsiChart");
         }
     }
 
@@ -248,10 +252,9 @@
                 var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 var dataPoint = new ChartDataPoint { time = now, value = (double)update.CurrentPrice };
                 
-                // Update Main Chart
+                // Update Charts
                 JSRuntime.InvokeVoidAsync("window.appInterop.updateTradingViewChart", "incomeChart", dataPoint);
                 
-                // Update History & Indicators
                 AddPriceHistory(update.CurrentPrice);
                 UpdateIndicators(now);
                 break;
@@ -264,20 +267,30 @@
     private void AddPriceHistory(decimal price)
     {
         priceHistory.Add(price);
-        if (priceHistory.Count > 100) priceHistory.RemoveAt(0); // Keep last 100
+        if (priceHistory.Count > 100) priceHistory.RemoveAt(0); // Maintain buffer
         chartData.Add(new ChartDataPoint { time = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), value = (double)price });
     }
 
     private void UpdateIndicators(long timestamp)
     {
-        if (priceHistory.Count >= smaPeriod)
+        if (priceHistory.Count >= period)
         {
-            var smaValues = TechnicalIndicatorsService.CalculateSMA(priceHistory, smaPeriod);
+            // SMA
+            var smaValues = TechnicalIndicatorsService.CalculateSMA(priceHistory, period);
             var currentSMA = smaValues.LastOrDefault();
             if (currentSMA > 0)
             {
                 var smaPoint = new { time = timestamp, value = (double)currentSMA };
                 JSRuntime.InvokeVoidAsync("window.appInterop.updateIndicatorSeries", "incomeChart", "SMA", smaPoint);
+            }
+
+            // RSI
+            var rsiValues = TechnicalIndicatorsService.CalculateRSI(priceHistory, period);
+            var currentRSI = rsiValues.LastOrDefault();
+            if (currentRSI > 0)
+            {
+                var rsiPoint = new { time = timestamp, value = (double)currentRSI };
+                JSRuntime.InvokeVoidAsync("window.appInterop.updateRsiSeries", "rsiChart", rsiPoint);
             }
         }
     }
