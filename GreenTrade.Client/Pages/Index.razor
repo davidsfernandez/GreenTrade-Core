@@ -83,25 +83,20 @@
                 </div>
             </div>
             
-             <!-- Dólar -->
+            <!-- Dólar -->
             <div class="col-12 mb-4">
                 <div class="card">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between flex-sm-row flex-column gap-3">
-                            <div class="d-flex flex-sm-column flex-row align-items-start justify-content-between">
-                                <div class="card-title">
-                                    <h5 class="text-nowrap mb-2">Dólar Comercial</h5>
-                                    <span class="badge bg-label-info rounded-pill">USDBRL</span>
-                                </div>
-                                <div class="mt-sm-auto">
-                                    <small class="@(dollarPrice.ChangePercentage >= 0 ? "text-success" : "text-danger") text-nowrap fw-semibold">
-                                        <i class="bx @(dollarPrice.ChangePercentage >= 0 ? "bx-up-arrow-alt" : "bx-down-arrow-alt")"></i> @(dollarPrice.ChangePercentage)%
-                                    </small>
-                                    <h3 class="mb-0">@Formatter.FormatCurrency(dollarPrice.CurrentPrice)</h3>
-                                </div>
+                         <div class="card-title d-flex align-items-start justify-content-between">
+                            <div class="avatar flex-shrink-0">
+                                <span class="avatar-initial rounded bg-label-info"><i class="bx bx-dollar"></i></span>
                             </div>
-                             <div id="profileReportChart"></div>
                         </div>
+                        <span class="fw-semibold d-block mb-1">Dólar Comercial (USDBRL)</span>
+                        <h3 class="card-title mb-2">@Formatter.FormatCurrency(dollarPrice.CurrentPrice)</h3>
+                        <small class="@(dollarPrice.ChangePercentage >= 0 ? "text-success" : "text-danger") fw-semibold">
+                            <i class="bx @(dollarPrice.ChangePercentage >= 0 ? "bx-up-arrow-alt" : "bx-down-arrow-alt")"></i> @(dollarPrice.ChangePercentage)%
+                        </small>
                     </div>
                 </div>
             </div>
@@ -116,12 +111,12 @@
         <div class="card h-100">
             <div class="card-header d-flex align-items-center justify-content-between pb-0">
                 <div class="card-title mb-0">
-                    <h5 class="m-0 me-2">Histórico de Preços</h5>
-                    <small class="text-muted">Variação intradiária</small>
+                    <h5 class="m-0 me-2">Histórico de Preços (TradingView)</h5>
+                    <small class="text-muted">Variação intradiária - Arábica (KC)</small>
                 </div>
             </div>
             <div class="card-body">
-                <div id="incomeChart"></div>
+                <div id="incomeChart" style="height: 300px; width: 100%;"></div>
             </div>
         </div>
     </div>
@@ -200,6 +195,9 @@
     private decimal basis;
     private decimal calculatedPrice;
 
+    // Chart Data
+    private List<object> chartData = new();
+
     protected override async Task OnInitializedAsync()
     {
         if (authenticationStateTask != null)
@@ -214,6 +212,9 @@
         // Init Calculator with defaults or market data
         nyPrice = arabicaPrice.CurrentPrice;
         dollarRate = dollarPrice.CurrentPrice;
+        
+        // Initial chart data point
+        AddChartData(arabicaPrice.CurrentPrice);
 
         try
         {
@@ -230,8 +231,8 @@
     {
         if (firstRender)
         {
-            // Initialize Chart
-            await JSRuntime.InvokeVoidAsync("window.appInterop.renderChart", "incomeChart", GetChartOptions());
+            // Initialize TradingView Chart
+            await JSRuntime.InvokeVoidAsync("window.appInterop.createTradingViewChart", "incomeChart", chartData);
         }
     }
 
@@ -241,13 +242,20 @@
         {
             case "KC":
                 arabicaPrice = update;
-                // Update chart if KC
-                JSRuntime.InvokeVoidAsync("window.appInterop.updateChart", "incomeChart", GenerateChartData(update.CurrentPrice));
+                // Update TradingView Chart
+                var dataPoint = new { time = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), value = (double)update.CurrentPrice };
+                JSRuntime.InvokeVoidAsync("window.appInterop.updateTradingViewChart", "incomeChart", dataPoint);
                 break;
             case "C8": conilonPrice = update; break;
             case "USDBRL": dollarPrice = update; break;
         }
         InvokeAsync(StateHasChanged);
+    }
+
+    private void AddChartData(decimal price)
+    {
+        // TradingView format: { time: timestamp, value: price }
+        chartData.Add(new { time = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), value = (double)price });
     }
 
     private void UseMarketPrices()
@@ -265,44 +273,5 @@
     public void Dispose()
     {
         MarketService.OnPriceUpdate -= HandlePriceUpdate;
-    }
-
-    // Chart Helper Methods
-    private object GetChartOptions()
-    {
-        // ApexCharts options
-        return new
-        {
-            series = new object[] {
-                new { name = "Preço", data = new List<decimal> { arabicaPrice.CurrentPrice } }
-            },
-            chart = new {
-                height = 215,
-                parentHeightOffset = 0,
-                parentWidthOffset = 0,
-                toolbar = new { show = false },
-                type = "area"
-            },
-            dataLabels = new { enabled = false },
-            stroke = new { width = 2, curve = "smooth" },
-            grid = new {
-                borderColor = "#eef2f6", // Adjust based on theme if needed
-                strokeDashArray = 3,
-                xaxis = new { lines = new { show = false } }
-            },
-            fill = new { type = "gradient", gradient = new { shadeIntensity = 1, opacityFrom = 0.7, opacityTo = 0.9, stops = new[] { 0, 90, 100 } } },
-            colors = new[] { "#696cff" },
-            xaxis = new { categories = new List<string> { DateTime.Now.ToString("HH:mm") }, axisBorder = new { show = false }, axisTicks = new { show = false } },
-            yaxis = new { labels = new { show = false } }
-        };
-    }
-
-    private List<decimal> chartData = new List<decimal>();
-    private List<decimal> GenerateChartData(decimal newPrice)
-    {
-        // Simple logic to maintain a list of last 10 prices for demo
-        chartData.Add(newPrice);
-        if (chartData.Count > 10) chartData.RemoveAt(0);
-        return chartData;
     }
 }
