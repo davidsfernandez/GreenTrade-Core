@@ -7,6 +7,7 @@ namespace GreenTrade.Client.Services;
 public interface IAuthService
 {
     Task<LoginResponse> Login(LoginRequest request);
+    Task<LoginResponse> Register(RegisterRequest request);
     Task Logout();
 }
 
@@ -24,6 +25,19 @@ public class AuthService : IAuthService
     public async Task<LoginResponse> Login(LoginRequest request)
     {
         var result = await _httpClient.PostAsJsonAsync("api/auth/login", request);
+        var response = await result.Content.ReadFromJsonAsync<LoginResponse>();
+
+        if (response != null && response.Success)
+        {
+            await ((CustomAuthStateProvider)_authStateProvider).MarkUserAsAuthenticated(response.Token);
+        }
+
+        return response ?? new LoginResponse { Success = false, Message = "Unknown error" };
+    }
+
+    public async Task<LoginResponse> Register(RegisterRequest request)
+    {
+        var result = await _httpClient.PostAsJsonAsync("api/auth/register", request);
         var response = await result.Content.ReadFromJsonAsync<LoginResponse>();
 
         if (response != null && response.Success)

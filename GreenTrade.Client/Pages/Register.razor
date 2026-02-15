@@ -1,4 +1,4 @@
-@page "/login"
+@page "/register"
 @layout GreenTrade.Client.Layout.AuthLayout
 @using GreenTrade.Client.Layout
 @inject GreenTrade.Client.Services.IAuthService AuthService
@@ -48,81 +48,82 @@
         </div>
         <!-- /Logo -->
         
-        <h4 class="mb-2">Bem-vindo ao GreenTrade! 👋</h4>
-        <p class="mb-4">Por favor, entre na sua conta para começar a negociar.</p>
+        <h4 class="mb-2">A aventura começa aqui 🚀</h4>
+        <p class="mb-4">Torne o comércio de café mais fácil e eficiente!</p>
         
         @if (!string.IsNullOrEmpty(errorMessage))
         {
              <div class="alert alert-danger" role="alert">@errorMessage</div>
         }
 
-        <EditForm Model="loginRequest" OnValidSubmit="HandleLogin" class="mb-3">
+        <EditForm Model="registerRequest" OnValidSubmit="HandleRegister" class="mb-3">
             <DataAnnotationsValidator />
             
             <div class="mb-3">
+                <label for="username" class="form-label">Nome Completo</label>
+                <InputText @bind-Value="registerRequest.FullName" type="text" class="form-control" id="username" placeholder="Seu nome" autofocus />
+                 <ValidationMessage For="@(() => registerRequest.FullName)" />
+            </div>
+
+            <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
-                <InputText @bind-Value="loginRequest.Email" type="text" class="form-control" id="email" name="email-username" placeholder="Digite seu email" autofocus />
-                 <ValidationMessage For="@(() => loginRequest.Email)" />
+                <InputText @bind-Value="registerRequest.Email" type="text" class="form-control" id="email" placeholder="seu@email.com" />
+                 <ValidationMessage For="@(() => registerRequest.Email)" />
             </div>
             
             <div class="mb-3 form-password-toggle">
-                <div class="d-flex justify-content-between">
-                    <label class="form-label" for="password">Senha</label>
-                    <a href="javascript:void(0);">
-                        <small>Esqueceu a senha?</small>
-                    </a>
-                </div>
+                <label class="form-label" for="password">Senha</label>
                 <div class="input-group input-group-merge">
-                     <InputText @bind-Value="loginRequest.Password" type="password" id="password" class="form-control" name="password" placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;" aria-describedby="password" />
+                     <InputText @bind-Value="registerRequest.Password" type="password" id="password" class="form-control" placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;" aria-describedby="password" />
                      <span class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
                 </div>
-                 <ValidationMessage For="@(() => loginRequest.Password)" />
+                 <ValidationMessage For="@(() => registerRequest.Password)" />
             </div>
-            
+
             <div class="mb-3">
                 <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="remember-me" />
-                    <label class="form-check-label" for="remember-me"> Lembrar-me </label>
+                    <input class="form-check-input" type="checkbox" id="terms-conditions" name="terms" />
+                    <label class="form-check-label" for="terms-conditions">
+                        Eu concordo com a <a href="javascript:void(0);">política de privacidade e termos</a>
+                    </label>
                 </div>
             </div>
             
-            <div class="mb-3">
-                <button class="btn btn-primary d-grid w-100" type="submit" disabled="@isBusy">
-                     @if (isBusy) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                    Entrar
-                </button>
-            </div>
+            <button class="btn btn-primary d-grid w-100" type="submit" disabled="@isBusy">
+                 @if (isBusy) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                Cadastrar
+            </button>
         </EditForm>
 
         <p class="text-center">
-            <span>Novo na plataforma?</span>
-            <a href="register">
-                <span>Crie uma conta</span>
+            <span>Já tem uma conta?</span>
+            <a href="login">
+                <span>Entre aqui</span>
             </a>
         </p>
     </div>
 </div>
 
 @code {
-    private GreenTrade.Shared.DTOs.LoginRequest loginRequest = new();
+    private GreenTrade.Shared.DTOs.RegisterRequest registerRequest = new();
     private string? errorMessage;
     private bool isBusy;
 
-    private async Task HandleLogin()
+    private async Task HandleRegister()
     {
         isBusy = true;
         errorMessage = null;
 
         try
         {
-            var result = await AuthService.Login(loginRequest);
+            var result = await AuthService.Register(registerRequest);
             if (result.Success)
             {
                 Navigation.NavigateTo("");
             }
             else
             {
-                errorMessage = "Credenciais inválidas ou erro no servidor.";
+                errorMessage = result.Message ?? "Erro ao cadastrar usuário.";
             }
         }
         catch (Exception)
