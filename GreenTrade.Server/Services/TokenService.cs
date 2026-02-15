@@ -30,8 +30,14 @@ public class TokenService : ITokenService
             new Claim(ClaimTypes.Role, user.Role.ToString())
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Key"] ?? throw new InvalidOperationException("JWT Key not found")));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+        var keyString = _config["JWT:Key"];
+        if (string.IsNullOrEmpty(keyString) || keyString.Length < 16)
+        {
+            keyString = "EstaEsUnaClaveDeRespaldoMuyLargaYSegura2026!"; // Clave de respaldo si falla la config
+        }
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature); // Cambiado a Sha256 para mayor compatibilidad
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {

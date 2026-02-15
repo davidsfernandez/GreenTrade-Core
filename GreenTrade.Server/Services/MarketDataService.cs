@@ -34,38 +34,48 @@ public class MarketDataService : BackgroundService
     {
         _logger.LogInformation("Market Data Simulation Service is starting.");
 
+        // Initial delay to allow DB migrations/seeding to finish
+        await Task.Delay(5000, stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
-            foreach (var ticker in _prices.Keys.ToList())
+            try
             {
-                // Simulate Random Walk: variation between -0.5% and +0.5%
-                decimal currentPrice = _prices[ticker];
-                decimal variation = (decimal)(_random.NextDouble() * 0.01 - 0.005);
-                decimal newPrice = currentPrice * (1 + variation);
-                
-                // Keep prices positive and within reasonable bounds
-                if (newPrice < 0.1m) newPrice = 0.1m;
-                
-                _prices[ticker] = newPrice;
-
-                var update = new PriceUpdateDto
+                foreach (var ticker in _prices.Keys.ToList())
                 {
-                    Ticker = ticker,
-                    CurrentPrice = Math.Round(newPrice, 4),
-                    ChangePercentage = Math.Round(variation * 100, 2),
-                    Timestamp = DateTime.UtcNow
-                };
+                    // Simulate Random Walk: variation between -0.5% and +0.5%
+                    decimal currentPrice = _prices[ticker];
+                    decimal variation = (decimal)(_random.NextDouble() * 0.01 - 0.005);
+                    decimal newPrice = currentPrice * (1 + variation);
+                    
+                    // Keep prices positive and within reasonable bounds
+                    if (newPrice < 0.1m) newPrice = 0.1m;
+                    
+                    _prices[ticker] = newPrice;
 
-                // Broadcast to SignalR Hub
-                await _hubContext.Clients.Group("GlobalMarket").SendAsync("ReceivePriceUpdate", update, stoppingToken);
-                await _hubContext.Clients.Group(ticker).SendAsync("ReceivePriceUpdate", update, stoppingToken);
+                    var update = new PriceUpdateDto
+                    {
+                        Ticker = ticker,
+                        CurrentPrice = Math.Round(newPrice, 4),
+                        ChangePercentage = Math.Round(variation * 100, 2),
+                        Timestamp = DateTime.UtcNow
+                    };
 
-                // Trigger Alert Check
-                using (var scope = _serviceProvider.CreateScope())
-                {
-                    var alertService = scope.ServiceProvider.GetRequiredService<IPriceAlertService>();
-                    await alertService.CheckAlertsAsync(update);
+                    // Broadcast to SignalR Hub
+                    await _hubContext.Clients.Group("GlobalMarket").SendAsync("ReceivePriceUpdate", update, stoppingToken);
+                    await _hubContext.Clients.Group(ticker).SendAsync("ReceivePriceUpdate", update, stoppingToken);
+
+                    // Trigger Alert Check
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var alertService = scope.ServiceProvider.GetRequiredService<IPriceAlertService>();
+                        await alertService.CheckAlertsAsync(update);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in MarketDataService loop. Retrying in next tick...");
             }
 
             // Wait for 3 seconds before next "tick"

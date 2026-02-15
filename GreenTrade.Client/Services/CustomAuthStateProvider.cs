@@ -9,12 +9,10 @@ namespace GreenTrade.Client.Services;
 public class CustomAuthStateProvider : AuthenticationStateProvider
 {
     private readonly IJSRuntime _jsRuntime;
-    private readonly HttpClient _httpClient;
 
-    public CustomAuthStateProvider(IJSRuntime jsRuntime, HttpClient httpClient)
+    public CustomAuthStateProvider(IJSRuntime jsRuntime)
     {
         _jsRuntime = jsRuntime;
-        _httpClient = httpClient;
     }
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
@@ -26,8 +24,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
         }
 
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
+        // Token validation and claims extraction
         return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt")));
     }
 

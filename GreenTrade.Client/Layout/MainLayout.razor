@@ -2,74 +2,133 @@
 @using GreenTrade.Client.Components
 @inject GreenTrade.Client.Services.IAuthService AuthService
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
-<div class="main-layout">
-    <NotificationToast />
-    
-    <AuthorizeView>
-        <Authorized>
-            <!-- Desktop Sidebar -->
-            <nav class="sidebar">
-                <div class="mb-5 px-2">
-                    <h3 class="text-white mb-0"><i class="fas fa-leaf me-2"></i>GreenTrade</h3>
-                    <small class="text-white-50">Plataforma de Café</small>
+<div class="layout-wrapper layout-content-navbar">
+    <div class="layout-container">
+        <!-- Menu -->
+        <NavMenu />
+        <!-- / Menu -->
+
+        <!-- Layout container -->
+        <div class="layout-page">
+            <!-- Navbar -->
+            <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme"
+                 id="layout-navbar">
+                <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
+                    <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)" @onclick="ToggleSidebar">
+                        <i class="bx bx-menu bx-sm"></i>
+                    </a>
                 </div>
-                
-                <NavMenu />
 
-                <div class="mt-auto pt-5">
-                    <button class="btn btn-outline-light w-100" @onclick="Logout">
-                        <i class="fas fa-sign-out-alt me-2"></i> Sair
-                    </button>
-                </div>
-            </nav>
-
-            <main class="content-container">
-                <header class="d-flex justify-content-between align-items-center mb-4 d-none d-md-flex">
-                    <div>
-                        <h4 class="mb-0">@GetGreeting(), @context.User.Identity?.Name!</h4>
-                        <p class="text-muted small">@DateTime.Now.ToString("D", new System.Globalization.CultureInfo("pt-BR"))</p>
+                <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+                    <!-- Search -->
+                    <div class="navbar-nav align-items-center">
+                        <div class="nav-item d-flex align-items-center">
+                            <i class="bx bx-search fs-4 lh-0"></i>
+                            <input type="text"
+                                   class="form-control border-0 shadow-none"
+                                   placeholder="Buscar..."
+                                   aria-label="Buscar..." />
+                        </div>
                     </div>
-                </header>
+                    <!-- /Search -->
 
-                @Body
-            </main>
-
-            <!-- Mobile Bottom Bar -->
-            <nav class="bottom-nav">
-                <NavLink class="bottom-nav-item" href="" Match="NavLinkMatch.All">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Início</span>
-                </NavLink>
-                <NavLink class="bottom-nav-item" href="alerts">
-                    <i class="fas fa-bell"></i>
-                    <span>Alertas</span>
-                </NavLink>
-                <NavLink class="bottom-nav-item" href="profile">
-                    <i class="fas fa-user"></i>
-                    <span>Perfil</span>
-                </NavLink>
-                <NavLink class="bottom-nav-item" href="help">
-                    <i class="fas fa-question-circle"></i>
-                    <span>Ajuda</span>
-                </NavLink>
+                    <ul class="navbar-nav flex-row align-items-center ms-auto">
+                        <!-- Place this tag where you want the button to render. -->
+                        <!-- User -->
+                        <li class="nav-item navbar-dropdown dropdown-user dropdown">
+                            <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
+                                <div class="avatar avatar-online">
+                                    <img src="sneat/assets/img/avatars/1.png" alt class="w-px-40 h-auto rounded-circle" />
+                                </div>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="#">
+                                        <div class="d-flex">
+                                            <div class="flex-shrink-0 me-3">
+                                                <div class="avatar avatar-online">
+                                                    <img src="sneat/assets/img/avatars/1.png" alt class="w-px-40 h-auto rounded-circle" />
+                                                </div>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <span class="fw-semibold d-block">User</span>
+                                                <small class="text-muted">Admin</small>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <div class="dropdown-divider"></div>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="profile">
+                                        <i class="bx bx-user me-2"></i>
+                                        <span class="align-middle">Meu Perfil</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <div class="dropdown-divider"></div>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="javascript:void(0);" @onclick="Logout">
+                                        <i class="bx bx-power-off me-2"></i>
+                                        <span class="align-middle">Sair</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <!--/ User -->
+                    </ul>
+                </div>
             </nav>
-        </Authorized>
-        <NotAuthorized>
-            <div class="w-100">
-                @Body
+            <!-- / Navbar -->
+
+            <!-- Content wrapper -->
+            <div class="content-wrapper">
+                <!-- Content -->
+                <div class="container-xxl flex-grow-1 container-p-y">
+                    <NotificationToast />
+                    @Body
+                </div>
+                <!-- / Content -->
+
+                <!-- Footer -->
+                <footer class="content-footer footer bg-footer-theme">
+                    <div class="container-xxl d-flex flex-wrap justify-content-between py-2 flex-md-row flex-column">
+                        <div class="mb-2 mb-md-0">
+                            © @DateTime.Now.Year, made with ❤️ by
+                            <a href="https://themeselection.com" target="_blank" class="footer-link fw-bolder">ThemeSelection</a>
+                        </div>
+                    </div>
+                </footer>
+                <!-- / Footer -->
+
+                <div class="content-backdrop fade"></div>
             </div>
-        </NotAuthorized>
-    </AuthorizeView>
+            <!-- Content wrapper -->
+        </div>
+        <!-- / Layout page -->
+    </div>
+
+    <!-- Overlay -->
+    <div class="layout-overlay layout-menu-toggle"></div>
 </div>
 
 @code {
-    private string GetGreeting()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var hour = DateTime.Now.Hour;
-        if (hour < 12) return "Bom dia";
-        if (hour < 18) return "Boa tarde";
-        return "Boa noite";
+        if (firstRender)
+        {
+            // Call JS to initialize menu
+            await JSRuntime.InvokeVoidAsync("window.appInterop.initializeSneatMenu");
+        }
+    }
+
+    private async Task ToggleSidebar()
+    {
+        await JSRuntime.InvokeVoidAsync("window.appInterop.toggleMobileMenu");
     }
 
     private async Task Logout()

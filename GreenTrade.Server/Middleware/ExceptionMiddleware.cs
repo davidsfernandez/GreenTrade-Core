@@ -28,6 +28,10 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
+            // Registrar el error detallado en la consola del servidor (Docker logs)
+            Console.WriteLine($"[CRITICAL ERROR]: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+
             _logger.LogError(ex, ex.Message);
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;

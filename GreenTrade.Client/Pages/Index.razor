@@ -3,87 +3,306 @@
 @using GreenTrade.Client.Services
 @using GreenTrade.Client.Components
 @using GreenTrade.Shared.DTOs
+@using GreenTrade.Shared.Models
+@using GreenTrade.Shared.Services
 @attribute [Authorize]
 @inject MarketDataClientService MarketService
+@inject IPriceCalculatorService CalculatorService
+@inject FormatterService Formatter
+@inject IJSRuntime JSRuntime
+@inject HttpClient Http
 @implements IDisposable
 
 <PageTitle>Dashboard - GreenTrade</PageTitle>
 
 <div class="row">
-    <div class="col-md-12 d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="text-success mb-1">Dashboard de Trading</h1>
-            <p class="text-muted">Preços em tempo real das commodities agrícolas.</p>
-        </div>
-        <div class="text-end">
-            <span class="badge @(MarketService.State == Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected ? "bg-success" : "bg-warning")">
-                <i class="fas fa-circle me-1"></i>
-                @(MarketService.State == Microsoft.AspNetCore.SignalR.Client.HubConnectionState.Connected ? "Conectado" : "Reconectando...")
-            </span>
+    <!-- Welcome Card -->
+    <div class="col-lg-8 mb-4 order-0">
+        <div class="card">
+            <div class="d-flex align-items-end row">
+                <div class="col-sm-7">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Bom dia, @(string.IsNullOrEmpty(UserName) ? "Usuário" : UserName)! 🎉</h5>
+                        <p class="mb-4">
+                            O mercado de café está aquecido hoje. Confira as cotações em tempo real e utilize nossa calculadora.
+                        </p>
+
+                        <a href="quotes" class="btn btn-sm btn-outline-primary">Ver Cotações</a>
+                    </div>
+                </div>
+                <div class="col-sm-5 text-center text-sm-left">
+                    <div class="card-body pb-0 px-0 px-md-4">
+                        <img src="sneat/assets/img/illustrations/man-with-laptop-light.png"
+                             height="140"
+                             alt="View Badge User"
+                             data-app-dark-img="illustrations/man-with-laptop-dark.png"
+                             data-app-light-img="illustrations/man-with-laptop-light.png" />
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+    <!--/ Welcome Card -->
+
+    <!-- Tickers -->
+    <div class="col-lg-4 col-md-4 order-1">
+        <div class="row">
+            <!-- Café Arábica -->
+            <div class="col-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-title d-flex align-items-start justify-content-between">
+                            <div class="avatar flex-shrink-0">
+                                <span class="avatar-initial rounded bg-label-success"><i class="bx bx-coffee"></i></span>
+                            </div>
+                        </div>
+                        <span class="fw-semibold d-block mb-1">Arábica (KC)</span>
+                        <h3 class="card-title mb-2">@Formatter.FormatCurrency(arabicaPrice.CurrentPrice)</h3>
+                        <small class="@(arabicaPrice.ChangePercentage >= 0 ? "text-success" : "text-danger") fw-semibold">
+                            <i class="bx @(arabicaPrice.ChangePercentage >= 0 ? "bx-up-arrow-alt" : "bx-down-arrow-alt")"></i> @(arabicaPrice.ChangePercentage)%
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Café Conilon -->
+            <div class="col-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="card-title d-flex align-items-start justify-content-between">
+                            <div class="avatar flex-shrink-0">
+                                <span class="avatar-initial rounded bg-label-warning"><i class="bx bx-coffee-togo"></i></span>
+                            </div>
+                        </div>
+                        <span class="fw-semibold d-block mb-1">Conilon (C8)</span>
+                        <h3 class="card-title mb-2">@Formatter.FormatCurrency(conilonPrice.CurrentPrice)</h3>
+                        <small class="@(conilonPrice.ChangePercentage >= 0 ? "text-success" : "text-danger") fw-semibold">
+                            <i class="bx @(conilonPrice.ChangePercentage >= 0 ? "bx-up-arrow-alt" : "bx-down-arrow-alt")"></i> @(conilonPrice.ChangePercentage)%
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+             <!-- Dólar -->
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between flex-sm-row flex-column gap-3">
+                            <div class="d-flex flex-sm-column flex-row align-items-start justify-content-between">
+                                <div class="card-title">
+                                    <h5 class="text-nowrap mb-2">Dólar Comercial</h5>
+                                    <span class="badge bg-label-info rounded-pill">USDBRL</span>
+                                </div>
+                                <div class="mt-sm-auto">
+                                    <small class="@(dollarPrice.ChangePercentage >= 0 ? "text-success" : "text-danger") text-nowrap fw-semibold">
+                                        <i class="bx @(dollarPrice.ChangePercentage >= 0 ? "bx-up-arrow-alt" : "bx-down-arrow-alt")"></i> @(dollarPrice.ChangePercentage)%
+                                    </small>
+                                    <h3 class="mb-0">@Formatter.FormatCurrency(dollarPrice.CurrentPrice)</h3>
+                                </div>
+                            </div>
+                             <div id="profileReportChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--/ Tickers -->
 </div>
 
-<div class="row mt-4 g-3">
-    <div class="col-md-4">
-        <MarketCard Title="Café Arábica" 
-                    Ticker="KC" 
-                    Price="arabicaPrice.CurrentPrice" 
-                    Change="arabicaPrice.ChangePercentage" 
-                    LastUpdate="arabicaPrice.Timestamp" />
+<div class="row">
+    <!-- Main Chart -->
+    <div class="col-12 col-lg-8 order-2 order-md-3 order-lg-2 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center justify-content-between pb-0">
+                <div class="card-title mb-0">
+                    <h5 class="m-0 me-2">Histórico de Preços</h5>
+                    <small class="text-muted">Variação intradiária</small>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="incomeChart"></div>
+            </div>
+        </div>
     </div>
-    <div class="col-md-4">
-        <MarketCard Title="Café Conilon" 
-                    Ticker="C8" 
-                    Price="conilonPrice.CurrentPrice" 
-                    Change="conilonPrice.ChangePercentage" 
-                    LastUpdate="conilonPrice.Timestamp" />
-    </div>
-    <div class="col-md-4">
-        <MarketCard Title="Dólar Comercial" 
-                    Ticker="USDBRL" 
-                    Price="dollarPrice.CurrentPrice" 
-                    Change="dollarPrice.ChangePercentage" 
-                    LastUpdate="dollarPrice.Timestamp" />
-    </div>
-</div>
+    <!--/ Main Chart -->
 
-<div class="row mt-5">
-    <div class="col-md-7">
-        <PriceCalculator CurrentArabica="arabicaPrice.CurrentPrice" 
-                         CurrentDollar="dollarPrice.CurrentPrice" />
+    <!-- Quick Calculator -->
+    <div class="col-md-6 col-lg-4 order-2 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title m-0 me-2">Calculadora Rápida</h5>
+                <div class="dropdown">
+                    <button class="btn p-0" type="button" id="calcOptions" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="bx bx-dots-vertical-rounded"></i>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="calcOptions">
+                        <a class="dropdown-item" href="javascript:void(0);" @onclick="UseMarketPrices">Usar Preços Atuais</a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <ul class="p-0 m-0">
+                    <li class="d-flex mb-4 pb-1">
+                        <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
+                            <div class="me-2">
+                                <h6 class="mb-0">NY (cts/lb)</h6>
+                                <input type="number" step="0.01" class="form-control form-control-sm mt-1" @bind="nyPrice" @bind:event="oninput" style="width: 100px;" />
+                            </div>
+                        </div>
+                    </li>
+                    <li class="d-flex mb-4 pb-1">
+                        <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
+                            <div class="me-2">
+                                <h6 class="mb-0">Dólar (R$)</h6>
+                                <input type="number" step="0.0001" class="form-control form-control-sm mt-1" @bind="dollarRate" @bind:event="oninput" style="width: 100px;" />
+                            </div>
+                        </div>
+                    </li>
+                    <li class="d-flex mb-4 pb-1">
+                         <div class="d-flex w-100 flex-wrap align-items-center justify-content-between gap-2">
+                            <div class="me-2">
+                                <h6 class="mb-0">Diferencial (R$)</h6>
+                                <input type="number" step="1" class="form-control form-control-sm mt-1" @bind="basis" @bind:event="oninput" style="width: 100px;" />
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary d-grid w-100" @onclick="Calculate">Calcular Agora</button>
+                </div>
+                
+                 @if (calculatedPrice > 0)
+                {
+                    <div class="mt-3 text-center">
+                        <small class="text-muted">Preço Sugerido (60kg)</small>
+                        <h3 class="text-success mt-1">@Formatter.FormatCurrency(calculatedPrice)</h3>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
-    <div class="col-md-5">
-        <MarketChart Title="Café Arábica" 
-                     Ticker="KC" 
-                     CurrentPrice="arabicaPrice.CurrentPrice" />
-    </div>
+    <!--/ Quick Calculator -->
 </div>
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState>? authenticationStateTask { get; set; }
+    private string UserName = "";
+
     private PriceUpdateDto arabicaPrice = new() { Ticker = "KC", CurrentPrice = 185.50m };
     private PriceUpdateDto conilonPrice = new() { Ticker = "C8", CurrentPrice = 145.20m };
     private PriceUpdateDto dollarPrice = new() { Ticker = "USDBRL", CurrentPrice = 5.25m };
 
+    // Calculator State
+    private decimal nyPrice;
+    private decimal dollarRate;
+    private decimal basis;
+    private decimal calculatedPrice;
+
     protected override async Task OnInitializedAsync()
     {
+        if (authenticationStateTask != null)
+        {
+            var authState = await authenticationStateTask;
+            UserName = authState.User.Identity?.Name ?? "";
+        }
+
         MarketService.OnPriceUpdate += HandlePriceUpdate;
         await MarketService.StartAsync();
+
+        // Init Calculator with defaults or market data
+        nyPrice = arabicaPrice.CurrentPrice;
+        dollarRate = dollarPrice.CurrentPrice;
+
+        try
+        {
+            var settings = await Http.GetFromJsonAsync<MarketSettings>("api/marketsettings");
+            if (settings != null)
+            {
+                basis = settings.CoffeeBasis;
+            }
+        }
+        catch { }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize Chart
+            await JSRuntime.InvokeVoidAsync("window.appInterop.renderChart", "incomeChart", GetChartOptions());
+        }
     }
 
     private void HandlePriceUpdate(PriceUpdateDto update)
     {
         switch (update.Ticker)
         {
-            case "KC": arabicaPrice = update; break;
+            case "KC":
+                arabicaPrice = update;
+                // Update chart if KC
+                JSRuntime.InvokeVoidAsync("window.appInterop.updateChart", "incomeChart", GenerateChartData(update.CurrentPrice));
+                break;
             case "C8": conilonPrice = update; break;
             case "USDBRL": dollarPrice = update; break;
         }
         InvokeAsync(StateHasChanged);
     }
 
+    private void UseMarketPrices()
+    {
+        nyPrice = arabicaPrice.CurrentPrice;
+        dollarRate = dollarPrice.CurrentPrice;
+        Calculate();
+    }
+
+    private void Calculate()
+    {
+        calculatedPrice = CalculatorService.CalculateCoffeeBagPrice(nyPrice, dollarRate, basis);
+    }
+
     public void Dispose()
     {
         MarketService.OnPriceUpdate -= HandlePriceUpdate;
+    }
+
+    // Chart Helper Methods
+    private object GetChartOptions()
+    {
+        // ApexCharts options
+        return new
+        {
+            series = new object[] {
+                new { name = "Preço", data = new List<decimal> { arabicaPrice.CurrentPrice } }
+            },
+            chart = new {
+                height = 215,
+                parentHeightOffset = 0,
+                parentWidthOffset = 0,
+                toolbar = new { show = false },
+                type = "area"
+            },
+            dataLabels = new { enabled = false },
+            stroke = new { width = 2, curve = "smooth" },
+            grid = new {
+                borderColor = "#eef2f6", // Adjust based on theme if needed
+                strokeDashArray = 3,
+                xaxis = new { lines = new { show = false } }
+            },
+            fill = new { type = "gradient", gradient = new { shadeIntensity = 1, opacityFrom = 0.7, opacityTo = 0.9, stops = new[] { 0, 90, 100 } } },
+            colors = new[] { "#696cff" },
+            xaxis = new { categories = new List<string> { DateTime.Now.ToString("HH:mm") }, axisBorder = new { show = false }, axisTicks = new { show = false } },
+            yaxis = new { labels = new { show = false } }
+        };
+    }
+
+    private List<decimal> chartData = new List<decimal>();
+    private List<decimal> GenerateChartData(decimal newPrice)
+    {
+        // Simple logic to maintain a list of last 10 prices for demo
+        chartData.Add(newPrice);
+        if (chartData.Count > 10) chartData.RemoveAt(0);
+        return chartData;
     }
 }

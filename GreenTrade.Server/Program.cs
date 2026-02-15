@@ -116,16 +116,14 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
-        if (context.Database.GetPendingMigrations().Any())
-        {
-            context.Database.Migrate();
-        }
+        // Ensure database and tables are created
+        await context.Database.EnsureCreatedAsync();
         await DbSeeder.SeedAsync(context);
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred during migration or seeding.");
+        logger.LogError(ex, "An error occurred during database initialization.");
     }
 }
 
