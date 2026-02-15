@@ -84,7 +84,7 @@
             </div>
             
              <!-- Dólar -->
-            <div class="col-12 mb-4">
+            <div class="col-6 mb-4">
                 <div class="card">
                     <div class="card-body">
                          <div class="card-title d-flex align-items-start justify-content-between">
@@ -92,10 +92,28 @@
                                 <span class="avatar-initial rounded bg-label-info"><i class="bx bx-dollar"></i></span>
                             </div>
                         </div>
-                        <span class="fw-semibold d-block mb-1">Dólar Comercial (USDBRL)</span>
+                        <span class="fw-semibold d-block mb-1">Dólar (USDBRL)</span>
                         <h3 class="card-title mb-2">@Formatter.FormatCurrency(dollarPrice.CurrentPrice)</h3>
                         <small class="@(dollarPrice.ChangePercentage >= 0 ? "text-success" : "text-danger") fw-semibold">
                             <i class="bx @(dollarPrice.ChangePercentage >= 0 ? "bx-up-arrow-alt" : "bx-down-arrow-alt")"></i> @(dollarPrice.ChangePercentage)%
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- B3 (New) -->
+            <div class="col-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                         <div class="card-title d-flex align-items-start justify-content-between">
+                            <div class="avatar flex-shrink-0">
+                                <span class="avatar-initial rounded bg-label-primary"><i class="bx bx-bar-chart-alt-2"></i></span>
+                            </div>
+                        </div>
+                        <span class="fw-semibold d-block mb-1">B3 (Arábica)</span>
+                        <h3 class="card-title mb-2">@Formatter.FormatCurrency(b3Price.CurrentPrice)</h3>
+                        <small class="@(b3Price.ChangePercentage >= 0 ? "text-success" : "text-danger") fw-semibold">
+                            <i class="bx @(b3Price.ChangePercentage >= 0 ? "bx-up-arrow-alt" : "bx-down-arrow-alt")"></i> @(b3Price.ChangePercentage)%
                         </small>
                     </div>
                 </div>
@@ -189,6 +207,7 @@
     private PriceUpdateDto arabicaPrice = new() { Ticker = "KC", CurrentPrice = 185.50m };
     private PriceUpdateDto conilonPrice = new() { Ticker = "C8", CurrentPrice = 145.20m };
     private PriceUpdateDto dollarPrice = new() { Ticker = "USDBRL", CurrentPrice = 5.25m };
+    private PriceUpdateDto b3Price = new() { Ticker = "B3", CurrentPrice = 1000.00m };
 
     private decimal nyPrice;
     private decimal dollarRate;
@@ -260,6 +279,7 @@
                 break;
             case "C8": conilonPrice = update; break;
             case "USDBRL": dollarPrice = update; break;
+            case "B3": b3Price = update; break;
         }
         InvokeAsync(StateHasChanged);
     }

@@ -9,11 +9,14 @@ public class YahooFinanceProvider : IMarketDataProvider
     private readonly ILogger<YahooFinanceProvider> _logger;
 
     // Mapping from Internal Ticker -> Yahoo Ticker
+    // Note: B3 real-time data is often restricted. We try 'ICF=F' (Coffee Futures). 
+    // If not available, we might need to calculate it or use a proxy.
     private readonly Dictionary<string, string> _symbolMap = new()
     {
-        { "KC", "KC=F" },      // Coffee Arabica Futures
-        { "C8", "KT=F" },      // Coffee (Robusta/Conilon surrogate if direct not avail). KT is Coffee too. Let's use KC=F for now and simulate differential if needed. Wait, Robusta is 'RM=F' (Liffe). Let's try 'RM=F'.
-        { "USDBRL", "BRL=X" }  // USD to BRL
+        { "KC", "KC=F" },      // Coffee Arabica (NY)
+        { "C8", "RM=F" },      // Robusta Coffee (Liffe) - Proxy for Conilon
+        { "USDBRL", "BRL=X" }, // USD to BRL
+        { "B3", "ICF=F" }      // B3 Arabica Coffee (proxy)
     };
 
     public YahooFinanceProvider(HttpClient httpClient, ILogger<YahooFinanceProvider> logger)
@@ -53,13 +56,19 @@ public class YahooFinanceProvider : IMarketDataProvider
                 foreach (var item in resultArr.EnumerateArray())
                 {
                     var symbol = item.GetProperty("symbol").GetString();
-                    var price = item.GetProperty("regularMarketPrice").GetDecimal();
-                    var changePercent = item.GetProperty("regularMarketChangePercent").GetDecimal();
+                    
+                    decimal price = 0;
+                    if (item.TryGetProperty("regularMarketPrice", out var priceProp))
+                        price = priceProp.GetDecimal();
+                    
+                    decimal changePercent = 0;
+                    if (item.TryGetProperty("regularMarketChangePercent", out var changeProp))
+                        changePercent = changeProp.GetDecimal();
 
                     // Reverse Map
                     var internalSymbol = _symbolMap.FirstOrDefault(x => x.Value == symbol).Key;
                     
-                    if (internalSymbol != null)
+                    if (internalSymbol != null && price > 0)
                     {
                         results[internalSymbol] = new PriceUpdateDto
                         {

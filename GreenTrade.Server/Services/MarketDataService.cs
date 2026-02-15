@@ -14,7 +14,7 @@ public class MarketDataService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<MarketDataService> _logger;
 
-    private readonly List<string> _tickersToWatch = new() { "KC", "C8", "USDBRL" };
+    private readonly List<string> _tickersToWatch = new() { "KC", "C8", "USDBRL", "B3" };
 
     public MarketDataService(
         IHubContext<MarketHub> hubContext, 
