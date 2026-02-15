@@ -43,6 +43,12 @@ public class PriceAlertsController : ControllerBase
         return Ok(alerts);
     }
 
+    [HttpGet("commodities")]
+    public async Task<ActionResult<IEnumerable<Commodity>>> GetCommodities()
+    {
+        return await _context.Commodities.ToListAsync();
+    }
+
     [HttpPost]
     public async Task<ActionResult<PriceAlertDto>> CreateAlert(CreatePriceAlertDto request)
     {

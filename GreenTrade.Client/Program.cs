@@ -26,6 +26,7 @@ builder.Services.AddScoped<MarketDataClientService>();
 builder.Services.AddSingleton<IPriceCalculatorService, PriceCalculatorService>();
 builder.Services.AddScoped<FormatterService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<PriceAlertService>();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 

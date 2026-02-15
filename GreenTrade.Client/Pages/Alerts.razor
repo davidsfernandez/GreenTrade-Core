@@ -1,0 +1,147 @@
+@page "/alerts"
+@using GreenTrade.Shared.DTOs
+@using GreenTrade.Shared.Models
+@using GreenTrade.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject PriceAlertService AlertService
+@inject NotificationService Notifications
+
+<PageTitle>Meus Alertas - GreenTrade</PageTitle>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Meus Alertas de Preço</h5>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAlertModal">
+            <i class="bx bx-plus me-1"></i> Novo Alerta
+        </button>
+    </div>
+    <div class="table-responsive text-nowrap">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Commodity</th>
+                    <th>Ticker</th>
+                    <th>Preço Alvo</th>
+                    <th>Status</th>
+                    <th>Criado em</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody class="table-border-bottom-0">
+                @if (alerts == null)
+                {
+                    <tr><td colspan="6" class="text-center">Carregando...</td></tr>
+                }
+                else if (!alerts.Any())
+                {
+                    <tr><td colspan="6" class="text-center">Nenhum alerta configurado.</td></tr>
+                }
+                else
+                {
+                    @foreach (var alert in alerts)
+                    {
+                        <tr>
+                            <td><strong>@alert.CommodityName</strong></td>
+                            <td><span class="badge bg-label-primary me-1">@alert.Ticker</span></td>
+                            <td class="text-success fw-bold">R$ @alert.TargetPrice.ToString("N2")</td>
+                            <td>
+                                @if (alert.IsActive)
+                                {
+                                    <span class="badge bg-label-success">Ativo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-label-secondary">Inativo</span>
+                                }
+                            </td>
+                            <td>@alert.CreatedAt.ToString("g")</td>
+                            <td>
+                                <button class="btn btn-sm btn-icon btn-outline-danger" @onclick="() => DeleteAlert(alert.Id)">
+                                    <i class="bx bx-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="createAlertModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCenterTitle">Criar Novo Alerta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="newAlert" OnValidSubmit="HandleCreate">
+                    <DataAnnotationsValidator />
+                    <div class="row">
+                        <div class="col mb-3">
+                            <label for="commodity" class="form-label">Commodity</label>
+                            <InputSelect id="commodity" class="form-select" @bind-Value="newAlert.CommodityId">
+                                <option value="0">Selecione...</option>
+                                @foreach (var c in commodities)
+                                {
+                                    <option value="@c.Id">@c.Name (@c.TickerSymbol)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col mb-3">
+                            <label for="price" class="form-label">Preço Alvo (R$)</label>
+                            <InputNumber id="price" class="form-control" @bind-Value="newAlert.TargetPrice" />
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Salvar</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<PriceAlertDto>? alerts;
+    private List<Commodity> commodities = new();
+    private CreatePriceAlertDto newAlert = new() { TargetPrice = 100 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        alerts = await AlertService.GetMyAlerts();
+        commodities = await AlertService.GetCommodities();
+        if (commodities.Any() && newAlert.CommodityId == 0)
+        {
+            newAlert.CommodityId = commodities.First().Id;
+        }
+    }
+
+    private async Task HandleCreate()
+    {
+        if (newAlert.CommodityId == 0) return;
+        
+        await AlertService.CreateAlert(newAlert);
+        await LoadData();
+        Notifications.ShowSuccess("Alerta criado com sucesso!");
+        newAlert = new CreatePriceAlertDto { CommodityId = commodities.FirstOrDefault()?.Id ?? 0, TargetPrice = 100 };
+    }
+
+    private async Task DeleteAlert(int id)
+    {
+        await AlertService.DeleteAlert(id);
+        await LoadData();
+        Notifications.ShowInfo("Alerta removido.");
+    }
+}
