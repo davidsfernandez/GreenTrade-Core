@@ -83,7 +83,7 @@
                 </div>
             </div>
             
-            <!-- Dólar -->
+             <!-- Dólar -->
             <div class="col-12 mb-4">
                 <div class="card">
                     <div class="card-body">
@@ -112,7 +112,7 @@
             <div class="card-header d-flex align-items-center justify-content-between pb-0">
                 <div class="card-title mb-0">
                     <h5 class="m-0 me-2">Histórico de Preços (TradingView)</h5>
-                    <small class="text-muted">Variação intradiária - Arábica (KC)</small>
+                    <small class="text-muted">Arábica (KC) com SMA 14</small>
                 </div>
             </div>
             <div class="card-body">
@@ -196,7 +196,9 @@
     private decimal calculatedPrice;
 
     // Chart Data
-    private List<object> chartData = new();
+    private List<ChartDataPoint> chartData = new();
+    private List<decimal> priceHistory = new();
+    private int smaPeriod = 14;
 
     protected override async Task OnInitializedAsync()
     {
@@ -209,12 +211,11 @@
         MarketService.OnPriceUpdate += HandlePriceUpdate;
         await MarketService.StartAsync();
 
-        // Init Calculator with defaults or market data
         nyPrice = arabicaPrice.CurrentPrice;
         dollarRate = dollarPrice.CurrentPrice;
         
-        // Initial chart data point
-        AddChartData(arabicaPrice.CurrentPrice);
+        // Seed initial history
+        AddPriceHistory(arabicaPrice.CurrentPrice);
 
         try
         {
@@ -231,8 +232,10 @@
     {
         if (firstRender)
         {
-            // Initialize TradingView Chart
+            // Initialize Chart
             await JSRuntime.InvokeVoidAsync("window.appInterop.createTradingViewChart", "incomeChart", chartData);
+            // Initialize SMA Series (empty initially)
+            await JSRuntime.InvokeVoidAsync("window.appInterop.addIndicatorSeries", "incomeChart", "SMA", "#ff9f43", new List<object>()); 
         }
     }
 
@@ -242,9 +245,15 @@
         {
             case "KC":
                 arabicaPrice = update;
-                // Update TradingView Chart
-                var dataPoint = new { time = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), value = (double)update.CurrentPrice };
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var dataPoint = new ChartDataPoint { time = now, value = (double)update.CurrentPrice };
+                
+                // Update Main Chart
                 JSRuntime.InvokeVoidAsync("window.appInterop.updateTradingViewChart", "incomeChart", dataPoint);
+                
+                // Update History & Indicators
+                AddPriceHistory(update.CurrentPrice);
+                UpdateIndicators(now);
                 break;
             case "C8": conilonPrice = update; break;
             case "USDBRL": dollarPrice = update; break;
@@ -252,10 +261,25 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private void AddChartData(decimal price)
+    private void AddPriceHistory(decimal price)
     {
-        // TradingView format: { time: timestamp, value: price }
-        chartData.Add(new { time = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), value = (double)price });
+        priceHistory.Add(price);
+        if (priceHistory.Count > 100) priceHistory.RemoveAt(0); // Keep last 100
+        chartData.Add(new ChartDataPoint { time = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), value = (double)price });
+    }
+
+    private void UpdateIndicators(long timestamp)
+    {
+        if (priceHistory.Count >= smaPeriod)
+        {
+            var smaValues = TechnicalIndicatorsService.CalculateSMA(priceHistory, smaPeriod);
+            var currentSMA = smaValues.LastOrDefault();
+            if (currentSMA > 0)
+            {
+                var smaPoint = new { time = timestamp, value = (double)currentSMA };
+                JSRuntime.InvokeVoidAsync("window.appInterop.updateIndicatorSeries", "incomeChart", "SMA", smaPoint);
+            }
+        }
     }
 
     private void UseMarketPrices()
@@ -273,5 +297,11 @@
     public void Dispose()
     {
         MarketService.OnPriceUpdate -= HandlePriceUpdate;
+    }
+
+    public class ChartDataPoint
+    {
+        public long time { get; set; }
+        public double value { get; set; }
     }
 }

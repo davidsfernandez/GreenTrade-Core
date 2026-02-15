@@ -1,5 +1,5 @@
 window.appInterop = {
-    // Store instances globally to manage updates and resizing
+    // Store instances globally
     instances: {},
 
     initializeSneatMenu: function () {
@@ -23,107 +23,104 @@ window.appInterop = {
         document.documentElement.classList.toggle('layout-menu-expanded');
     },
 
-    // Legacy ApexCharts Support
-    renderChart: function (elementId, options) {
-        if (typeof ApexCharts !== 'undefined') {
-            var el = document.getElementById(elementId);
-            if (el) {
-                if (this.instances[elementId] && this.instances[elementId].destroy) {
-                    this.instances[elementId].destroy();
-                }
-                var chart = new ApexCharts(el, options);
-                chart.render();
-                this.instances[elementId] = chart;
-            }
-        }
-    },
-    
-    updateChart: function (elementId, seriesData) {
-        if (this.instances[elementId] && this.instances[elementId].updateSeries) {
-            this.instances[elementId].updateSeries([{
-                data: seriesData
-            }]);
-        }
-    },
-
-    // TradingView Lightweight Charts Implementation
+    // TradingView Lightweight Charts
     createTradingViewChart: function (elementId, initialData) {
         const container = document.getElementById(elementId);
-        if (!container) return;
+        if (!container || typeof LightweightCharts === 'undefined') return;
 
-        // Cleanup existing instance if any
         if (this.instances[elementId]) {
-            // ApexCharts destroy method
-            if (this.instances[elementId].destroy) this.instances[elementId].destroy();
-            // Lightweight Charts remove method
             if (this.instances[elementId].remove) this.instances[elementId].remove();
-            
-            // Remove resize observer if attached (custom logic needed if stored separately)
             delete this.instances[elementId];
         }
         
-        container.innerHTML = ''; // Clear container
+        container.innerHTML = '';
 
-        const chart = LightweightCharts.createChart(container, {
-            width: container.clientWidth,
-            height: 300,
-            layout: {
-                backgroundColor: '#ffffff',
-                textColor: '#566a7f', // Sneat text color
-                fontSize: 12,
-                fontFamily: 'Public Sans, sans-serif',
-            },
-            grid: {
-                vertLines: { color: '#eceef1' },
-                horzLines: { color: '#eceef1' },
-            },
-            rightPriceScale: {
-                borderColor: '#d9d9d9',
-            },
-            timeScale: {
-                borderColor: '#d9d9d9',
-                timeVisible: true,
-                secondsVisible: false,
-            },
-        });
+        try {
+            const chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: 300,
+                layout: {
+                    backgroundColor: '#ffffff',
+                    textColor: '#566a7f',
+                    fontSize: 12,
+                    fontFamily: 'Public Sans, sans-serif',
+                },
+                grid: {
+                    vertLines: { color: '#eceef1' },
+                    horzLines: { color: '#eceef1' },
+                },
+                rightPriceScale: { borderColor: '#d9d9d9' },
+                timeScale: { borderColor: '#d9d9d9', timeVisible: true, secondsVisible: false },
+            });
 
-        const areaSeries = chart.addAreaSeries({
-            topColor: 'rgba(105, 108, 255, 0.56)', // Sneat Primary
-            bottomColor: 'rgba(105, 108, 255, 0.04)',
-            lineColor: 'rgba(105, 108, 255, 1)',
-            lineWidth: 2,
-        });
+            // Main Price Series (Area)
+            const mainSeries = chart.addAreaSeries({
+                topColor: 'rgba(105, 108, 255, 0.56)',
+                bottomColor: 'rgba(105, 108, 255, 0.04)',
+                lineColor: 'rgba(105, 108, 255, 1)',
+                lineWidth: 2,
+            });
 
-        if (initialData && initialData.length > 0) {
-            // Ensure data is sorted by time. Data should be [{ time: '2019-04-11', value: 80.01 }]
-            areaSeries.setData(initialData);
-        }
-
-        // Handle Resize
-        const resizeObserver = new ResizeObserver(entries => {
-            if (entries.length === 0 || entries[0].target !== container) { return; }
-            const newRect = entries[0].contentRect;
-            chart.applyOptions({ width: newRect.width, height: newRect.height });
-        });
-        resizeObserver.observe(container);
-
-        // Store instance along with series for updates
-        this.instances[elementId] = {
-            chart: chart,
-            series: areaSeries,
-            resizeObserver: resizeObserver,
-            remove: function() {
-                resizeObserver.disconnect();
-                chart.remove();
+            if (initialData && initialData.length > 0) {
+                initialData.sort((a, b) => a.time - b.time);
+                mainSeries.setData(initialData);
             }
-        };
+
+            // Store instance
+            const resizeObserver = new ResizeObserver(entries => {
+                if (entries.length === 0 || entries[0].target !== container) return;
+                const newRect = entries[0].contentRect;
+                chart.applyOptions({ width: newRect.width, height: newRect.height });
+            });
+            resizeObserver.observe(container);
+
+            this.instances[elementId] = {
+                chart: chart,
+                mainSeries: mainSeries,
+                indicators: {}, // Store indicator series by name
+                resizeObserver: resizeObserver,
+                remove: function() {
+                    resizeObserver.disconnect();
+                    chart.remove();
+                }
+            };
+        } catch (e) {
+            console.error('Error creating TradingView chart:', e);
+        }
     },
 
     updateTradingViewChart: function (elementId, dataPoint) {
-        // dataPoint format: { time: 'yyyy-mm-dd' or timestamp, value: 123.45 }
         const instance = this.instances[elementId];
-        if (instance && instance.series) {
-            instance.series.update(dataPoint);
+        if (instance && instance.mainSeries) {
+            instance.mainSeries.update(dataPoint);
+        }
+    },
+
+    // Add generic line indicator (e.g., SMA)
+    addIndicatorSeries: function (elementId, name, color, data) {
+        const instance = this.instances[elementId];
+        if (!instance) return;
+
+        // Create if not exists
+        if (!instance.indicators[name]) {
+            instance.indicators[name] = instance.chart.addLineSeries({
+                color: color,
+                lineWidth: 1,
+                priceLineVisible: false,
+                lastValueVisible: false,
+            });
+        }
+
+        if (data && data.length > 0) {
+            data.sort((a, b) => a.time - b.time);
+            instance.indicators[name].setData(data);
+        }
+    },
+
+    updateIndicatorSeries: function (elementId, name, dataPoint) {
+        const instance = this.instances[elementId];
+        if (instance && instance.indicators[name]) {
+            instance.indicators[name].update(dataPoint);
         }
     }
 };

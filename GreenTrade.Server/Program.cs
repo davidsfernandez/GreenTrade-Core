@@ -119,6 +119,20 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<AppDbContext>();
         // Ensure database and tables are created
         await context.Database.EnsureCreatedAsync();
+
+        // Schema Patch for Password Recovery (Hotfix for existing dev databases)
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN PasswordResetToken longtext NULL;");
+        }
+        catch { /* Ignore if column exists */ }
+
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN ResetTokenExpires datetime(6) NULL;");
+        }
+        catch { /* Ignore if column exists */ }
+
         await DbSeeder.SeedAsync(context);
     }
     catch (Exception ex)
