@@ -1,0 +1,247 @@
+@page "/my-lots"
+@using GreenTrade.Shared.DTOs
+@using GreenTrade.Shared.Enums
+@using GreenTrade.Shared.Models
+@using GreenTrade.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject CoffeeLotService LotService
+@inject PriceAlertService AlertService // Reusing for commodities list
+@inject NotificationService Notifications
+
+<PageTitle>Meus Lotes - GreenTrade</PageTitle>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Meus Lotes de Café</h5>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLotModal">
+            <i class="bx bx-plus me-1"></i> Anunciar Lote
+        </button>
+    </div>
+    <div class="table-responsive text-nowrap">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Commodity</th>
+                    <th>Qtd (Sacas)</th>
+                    <th>Safra</th>
+                    <th>Bebida</th>
+                    <th>Local</th>
+                    <th>Preço (R$)</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody class="table-border-bottom-0">
+                @if (lots == null)
+                {
+                    <tr><td colspan="8" class="text-center">Carregando...</td></tr>
+                }
+                else if (!lots.Any())
+                {
+                    <tr><td colspan="8" class="text-center">Você ainda não tem lotes anunciados.</td></tr>
+                }
+                else
+                {
+                    @foreach (var lot in lots)
+                    {
+                        <tr>
+                            <td><strong>@lot.CommodityName</strong></td>
+                            <td>@lot.Quantity</td>
+                            <td>@lot.CropYear</td>
+                            <td><span class="badge bg-label-info">@lot.Quality</span></td>
+                            <td>@lot.WarehouseCity</td>
+                            <td class="text-success fw-bold">@(lot.AskingPrice?.ToString("C2") ?? "A Combinar")</td>
+                            <td><span class="badge bg-label-primary">@lot.Status</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-icon btn-outline-danger" @onclick="() => DeleteLot(lot.Id)">
+                                    <i class="bx bx-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="createLotModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Anunciar Novo Lote</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="newLot" OnValidSubmit="HandleCreate">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="row g-2">
+                        <div class="col mb-3">
+                            <label class="form-label">Tipo de Café</label>
+                            <InputSelect class="form-select" @bind-Value="newLot.CommodityId">
+                                <option value="0">Selecione...</option>
+                                @foreach (var c in commodities)
+                                {
+                                    <option value="@c.Id">@c.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="col mb-3">
+                            <label class="form-label">Bebida (Qualidade)</label>
+                            <InputSelect class="form-select" @bind-Value="newLot.Quality">
+                                @foreach (var q in Enum.GetValues<CoffeeQuality>())
+                                {
+                                    <option value="@q">@q.ToString()</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col mb-3">
+                            <label class="form-label">Quantidade (Sacas 60kg)</label>
+                            <InputNumber class="form-control" @bind-Value="newLot.Quantity" />
+                        </div>
+                        <div class="col mb-3">
+                            <label class="form-label">Safra (Ex: 23/24)</label>
+                            <InputText class="form-control" @bind-Value="newLot.CropYear" placeholder="2023/2024" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Armazém / Local de Entrega</label>
+                        <InputSelect class="form-select" @bind-Value="newLot.WarehouseId">
+                            <option value="0">Selecione um Armazém...</option>
+                            @foreach (var w in warehouses)
+                            {
+                                <option value="@w.Id">@w.Name - @w.City/@w.State</option>
+                            }
+                        </InputSelect>
+                        <div class="form-text">Apenas armazéns credenciados.</div>
+                    </div>
+                    
+                    <div class="row g-2">
+                        <div class="col mb-3">
+                            <label class="form-label">Peneira (Opcional)</label>
+                            <InputText class="form-control" @bind-Value="newLot.ScreenSize" placeholder="16 acima" />
+                        </div>
+                        <div class="col mb-3">
+                            <label class="form-label">Defeitos (COB)</label>
+                            <InputNumber class="form-control" @bind-Value="newLot.Defects" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Certificações</label>
+                        <div class="border rounded p-3" style="max-height: 150px; overflow-y: auto;">
+                            @foreach (var cert in certifications)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           checked="@IsCertSelected(cert.Id)" 
+                                           @onchange="@(e => ToggleCert(cert.Id, e.Value))" 
+                                           id="cert-@cert.Id">
+                                    <label class="form-check-label" for="cert-@cert.Id">
+                                        @cert.Name
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Preço Pedido (R$) - Deixe 0 para "A Combinar"</label>
+                        <InputNumber class="form-control" @bind-Value="newLot.AskingPrice" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Descrição / Observações</label>
+                        <InputTextArea class="form-control" @bind-Value="newLot.Description" rows="3" />
+                    </div>
+
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Publicar Lote</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<CoffeeLotDto>? lots;
+    private List<Commodity> commodities = new();
+    private List<Warehouse> warehouses = new();
+    private List<Certification> certifications = new();
+    private CreateCoffeeLotDto newLot = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        lots = await LotService.GetMyLots();
+        commodities = await AlertService.GetCommodities(); // Reusing the endpoint
+        warehouses = await LotService.GetWarehouses();
+        certifications = await LotService.GetCertifications();
+
+        if (commodities.Any() && newLot.CommodityId == 0)
+        {
+            newLot.CommodityId = commodities.First().Id;
+        }
+        if (warehouses.Any() && newLot.WarehouseId == 0)
+        {
+            newLot.WarehouseId = warehouses.First().Id;
+        }
+    }
+
+    private bool IsCertSelected(int certId)
+    {
+        return newLot.CertificationIds?.Contains(certId) ?? false;
+    }
+
+    private void ToggleCert(int certId, object? checkedValue)
+    {
+        if (newLot.CertificationIds == null) newLot.CertificationIds = new List<int>();
+
+        bool isChecked = (bool)(checkedValue ?? false);
+        if (isChecked)
+        {
+            if (!newLot.CertificationIds.Contains(certId))
+                newLot.CertificationIds.Add(certId);
+        }
+        else
+        {
+            newLot.CertificationIds.Remove(certId);
+        }
+    }
+
+    private async Task HandleCreate()
+    {
+        if (newLot.CommodityId == 0 || newLot.WarehouseId == 0) return;
+        
+        await LotService.CreateLot(newLot);
+        await LoadData();
+        Notifications.ShowSuccess("Lote publicado com sucesso!");
+        newLot = new CreateCoffeeLotDto 
+        { 
+            CommodityId = commodities.FirstOrDefault()?.Id ?? 0, 
+            Quantity = 100, 
+            CropYear = DateTime.Now.Year.ToString(),
+            WarehouseId = warehouses.FirstOrDefault()?.Id ?? 0
+        };
+    }
+
+    private async Task DeleteLot(int id)
+    {
+        await LotService.DeleteLot(id);
+        await LoadData();
+        Notifications.ShowInfo("Lote removido.");
+    }
+}

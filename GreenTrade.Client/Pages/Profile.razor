@@ -1,6 +1,13 @@
 @page "/profile"
 @using Microsoft.AspNetCore.Authorization
+@using GreenTrade.Client.Services
+@using GreenTrade.Shared.DTOs
+@using System.Security.Claims
 @attribute [Authorize]
+@inject IUserService UserService
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NotificationService NotificationService
 
 <PageTitle>Meu Perfil - GreenTrade</PageTitle>
 
@@ -9,47 +16,86 @@
         <div class="col-md-8 mx-auto">
             <h2 class="mb-4">Meu Perfil</h2>
             
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-4">
-                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2rem;">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="ms-4">
-                            <h4 class="mb-0">Usuário do Sistema</h4>
-                            <span class="badge bg-warning text-dark">Plano Premium</span>
-                        </div>
+            @if (_user == null)
+            {
+                <div class="d-flex justify-content-center p-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
                     </div>
-
-                    <form>
-                        <div class="mb-3">
-                            <label class="form-label text-muted">E-mail</label>
-                            <input type="text" class="form-control" value="usuario@greentrade.com" readonly />
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Nome Completo</label>
-                            <input type="text" class="form-control" value="Usuário GreenTrade" />
-                        </div>
-
-                        <hr class="my-4" />
-
-                        <h5>Alterar Senha</h5>
-                        <div class="mb-3">
-                            <label class="form-label">Senha Atual</label>
-                            <input type="password" class="form-control" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Nova Senha</label>
-                            <input type="password" class="form-control" />
-                        </div>
-
-                        <button type="button" class="btn btn-primary w-100 mt-3">
-                            Salvar Alterações
-                        </button>
-                    </form>
                 </div>
-            </div>
+            }
+            else
+            {
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-4">
+                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2rem;">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="ms-4">
+                                <h4 class="mb-0">@_user.FullName</h4>
+                                <span class="badge bg-warning text-dark">@_user.Role</span>
+                            </div>
+                        </div>
+
+                        <EditForm Model="_updateRequest" OnValidSubmit="HandleUpdateProfile">
+                            <DataAnnotationsValidator />
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">E-mail</label>
+                                <input type="text" class="form-control" value="@_user.Email" readonly disabled />
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Nome Completo</label>
+                                <InputText class="form-control" @bind-Value="_updateRequest.FullName" />
+                                <ValidationMessage For="@(() => _updateRequest.FullName)" />
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 mt-3" disabled="@_isProcessing">
+                                @if (_isProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Salvar Perfil
+                            </button>
+                        </EditForm>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Alterar Senha</h5>
+                        <EditForm Model="_changePasswordRequest" OnValidSubmit="HandleChangePassword">
+                            <DataAnnotationsValidator />
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Senha Atual</label>
+                                <InputText type="password" class="form-control" @bind-Value="_changePasswordRequest.CurrentPassword" />
+                                <ValidationMessage For="@(() => _changePasswordRequest.CurrentPassword)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Nova Senha</label>
+                                <InputText type="password" class="form-control" @bind-Value="_changePasswordRequest.NewPassword" />
+                                <ValidationMessage For="@(() => _changePasswordRequest.NewPassword)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Confirmar Nova Senha</label>
+                                <InputText type="password" class="form-control" @bind-Value="_changePasswordRequest.ConfirmPassword" />
+                                <ValidationMessage For="@(() => _changePasswordRequest.ConfirmPassword)" />
+                            </div>
+
+                            <button type="submit" class="btn btn-secondary w-100 mt-3" disabled="@_isProcessingPassword">
+                                @if (_isProcessingPassword)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Alterar Senha
+                            </button>
+                        </EditForm>
+                    </div>
+                </div>
+            }
             
             <div class="text-center text-muted small mt-4">
                 Versão do Sistema: 1.0.2-stable
@@ -57,3 +103,93 @@
         </div>
     </div>
 </div>
+
+@code {
+    private UserDto? _user;
+    private UpdateProfileRequest _updateRequest = new();
+    private ChangePasswordRequest _changePasswordRequest = new();
+    private bool _isProcessing;
+    private bool _isProcessingPassword;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserData();
+    }
+
+    private async Task LoadUserData()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            // We could fetch from API or parse claims
+            // Let's fetch from API to get the latest data
+            var email = user.FindFirst(ClaimTypes.Email)?.Value;
+            if (!string.IsNullOrEmpty(email))
+            {
+                // We need a GetCurrentUserInfo method in UserService or use AuthController/me
+                // For now, let's assume we can get it by parsing claims or adding a method
+                _user = new UserDto
+                {
+                    FullName = user.Identity.Name ?? "Usuário",
+                    Email = email,
+                    Role = user.FindFirst(ClaimTypes.Role)?.Value ?? "Buyer"
+                };
+                _updateRequest.FullName = _user.FullName;
+            }
+        }
+    }
+
+    private async Task HandleUpdateProfile()
+    {
+        _isProcessing = true;
+        try
+        {
+            var success = await UserService.UpdateProfile(_updateRequest);
+            if (success)
+            {
+                NotificationService.ShowSuccess("Perfil atualizado com sucesso!");
+                await LoadUserData();
+            }
+            else
+            {
+                NotificationService.ShowError("Erro ao atualizar perfil.");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Erro: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task HandleChangePassword()
+    {
+        _isProcessingPassword = true;
+        try
+        {
+            var response = await UserService.ChangePassword(_changePasswordRequest);
+            if (response.Success)
+            {
+                NotificationService.ShowSuccess(response.Message);
+                _changePasswordRequest = new(); // Reset form
+            }
+            else
+            {
+                NotificationService.ShowError(response.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Erro: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessingPassword = false;
+        }
+    }
+}

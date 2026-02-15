@@ -1,7 +1,21 @@
+using GreenTrade.Shared.DTOs;
+
 namespace GreenTrade.Shared.Services;
 
 public static class TechnicalIndicatorsService
 {
+    public static MarketRecommendation GetRecommendation(decimal rsi)
+    {
+        if (rsi == 0) return new MarketRecommendation { Type = RecommendationType.Neutral, Message = "Aguardando dados...", Color = "secondary", RSI = rsi };
+
+        if (rsi <= 20) return new MarketRecommendation { Type = RecommendationType.StrongBuy, Message = "Compra Forte (Sobrevenda)", Color = "success", RSI = rsi };
+        if (rsi <= 35) return new MarketRecommendation { Type = RecommendationType.Buy, Message = "Compra (RSI Baixo)", Color = "info", RSI = rsi };
+        if (rsi >= 80) return new MarketRecommendation { Type = RecommendationType.StrongSell, Message = "Venda Forte (Sobrecompra)", Color = "danger", RSI = rsi };
+        if (rsi >= 65) return new MarketRecommendation { Type = RecommendationType.Sell, Message = "Venda (RSI Alto)", Color = "warning", RSI = rsi };
+
+        return new MarketRecommendation { Type = RecommendationType.Neutral, Message = "Neutro", Color = "secondary", RSI = rsi };
+    }
+
     public static List<decimal> CalculateSMA(List<decimal> prices, int period)
     {
         var sma = new List<decimal>();

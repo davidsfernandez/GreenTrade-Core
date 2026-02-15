@@ -84,6 +84,46 @@
         </li>
 
         <li class="menu-header small text-uppercase">
+            <span class="menu-header-text">Comercial</span>
+        </li>
+
+        <!-- Mercado -->
+        <li class="menu-item">
+            <NavLink class="menu-link" href="marketplace">
+                <i class="menu-icon tf-icons bx bx-store"></i>
+                <div data-i18n="Marketplace">Mercado</div>
+            </NavLink>
+        </li>
+
+        <!-- Negotiations -->
+        <li class="menu-item">
+            <NavLink class="menu-link" href="negotiations">
+                <i class="menu-icon tf-icons bx bx-briefcase-alt-2"></i>
+                <div data-i18n="Negotiations">Negociações</div>
+            </NavLink>
+        </li>
+
+        <!-- Meus Lotes -->
+        <li class="menu-item">
+            <NavLink class="menu-link" href="my-lots">
+                <i class="menu-icon tf-icons bx bx-box"></i>
+                <div data-i18n="My Lots">Meus Lotes</div>
+            </NavLink>
+        </li>
+
+        <AuthorizeView Roles="Admin">
+            <li class="menu-header small text-uppercase">
+                <span class="menu-header-text">Administração</span>
+            </li>
+            <li class="menu-item">
+                <NavLink class="menu-link" href="admin/settings">
+                    <i class="menu-icon tf-icons bx bx-cog"></i>
+                    <div data-i18n="Settings">Configurações</div>
+                </NavLink>
+            </li>
+        </AuthorizeView>
+
+        <li class="menu-header small text-uppercase">
             <span class="menu-header-text">Conta</span>
         </li>
 

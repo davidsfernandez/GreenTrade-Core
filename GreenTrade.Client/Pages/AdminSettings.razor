@@ -1,0 +1,116 @@
+@page "/admin/settings"
+@using Microsoft.AspNetCore.Authorization
+@using GreenTrade.Client.Services
+@using GreenTrade.Shared.Models
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject NotificationService NotificationService
+
+<PageTitle>Configurações de Mercado - Admin</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <h2 class="mb-4">Configurações Globais de Mercado</h2>
+            
+            <div class="card">
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Estes valores afetam a Calculadora de Preço Justo para todos os usuários.
+                    </p>
+
+                    @if (_settings == null)
+                    {
+                        <div class="d-flex justify-content-center p-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="_settings" OnValidSubmit="HandleSave">
+                            <DataAnnotationsValidator />
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Diferencial do Café (Basis) - R$</label>
+                                <InputNumber @bind-Value="_settings.CoffeeBasis" class="form-control" step="0.01" />
+                                <div class="form-text">Valor somado à cotação convertida (pode ser negativo).</div>
+                                <ValidationMessage For="@(() => _settings.CoffeeBasis)" />
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Taxa de Serviço (%)</label>
+                                <InputNumber @bind-Value="_settings.ServiceFeePercentage" class="form-control" step="0.01" />
+                                <div class="form-text">Margem da plataforma sobre as negociações.</div>
+                                <ValidationMessage For="@(() => _settings.ServiceFeePercentage)" />
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 mt-3" disabled="@_isSaving">
+                                @if (_isProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Salvar Configurações
+                            </button>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+            
+            @if (_settings?.UpdatedAt != null)
+            {
+                <div class="text-center text-muted small mt-4">
+                    Última atualização: @_settings.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private MarketSettings? _settings;
+    private bool _isSaving;
+    private bool _isProcessing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _settings = await Http.GetFromJsonAsync<MarketSettings>("api/marketsettings");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Erro ao carregar configurações: {ex.Message}");
+        }
+    }
+
+    private async Task HandleSave()
+    {
+        _isSaving = true;
+        _isProcessing = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/marketsettings", _settings);
+            if (response.IsSuccessStatusCode)
+            {
+                NotificationService.ShowSuccess("Configurações salvas com sucesso!");
+                // Reload to get latest UpdatedAt
+                _settings = await Http.GetFromJsonAsync<MarketSettings>("api/marketsettings");
+            }
+            else
+            {
+                NotificationService.ShowError("Erro ao salvar configurações.");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Erro: {ex.Message}");
+        }
+        finally
+        {
+            _isSaving = false;
+            _isProcessing = false;
+        }
+    }
+}

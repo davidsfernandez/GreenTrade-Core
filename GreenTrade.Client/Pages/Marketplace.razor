@@ -1,0 +1,153 @@
+@page "/marketplace"
+@using GreenTrade.Shared.DTOs
+@using GreenTrade.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject CoffeeLotService LotService
+@inject OfferService OfferService
+@inject NotificationService Notifications
+@inject FormatterService Formatter
+
+<PageTitle>Mercado Disponível - GreenTrade</PageTitle>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h4 class="text-white mb-0"><i class="bx bx-store me-2"></i> Mercado de Café Verde</h4>
+                <p class="mb-0">Explore lotes disponíveis diretamente dos produtores.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (lots == null)
+{
+    <div class="text-center">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+}
+else if (!lots.Any())
+{
+    <div class="alert alert-info">Nenhum lote disponível no momento.</div>
+}
+else
+{
+    <div class="row g-4">
+        @foreach (var lot in lots)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between">
+                        <span class="badge bg-label-primary">@lot.CommodityName</span>
+                        <small class="text-muted">@lot.CreatedAt.ToString("dd/MM/yyyy")</small>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">@lot.Quantity Sacas (Safra @lot.CropYear)</h5>
+                        <p class="card-text">
+                            <strong>Bebida:</strong> @lot.Quality<br/>
+                            <strong>Local:</strong> @lot.WarehouseCity
+                        </p>
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bx bx-money text-success me-2"></i>
+                            <h4 class="mb-0 text-success">
+                                @(lot.AskingPrice.HasValue ? Formatter.FormatCurrency(lot.AskingPrice.Value) : "A Combinar")
+                            </h4>
+                            @if (lot.AskingPrice.HasValue)
+                            {
+                                <small class="text-muted ms-1">/ saca</small>
+                            }
+                        </div>
+                        <button class="btn btn-outline-primary w-100" @onclick="() => OpenOfferModal(lot)">
+                            <i class="bx bx-message-rounded-dots me-1"></i> Negociar / Ofertar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- Offer Modal -->
+<div class="modal fade @(showModal ? "show d-block" : "")" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Fazer Oferta</h5>
+                <button type="button" class="btn-close" @onclick="CloseModal"></button>
+            </div>
+            <div class="modal-body">
+                @if (selectedLot != null)
+                {
+                    <div class="alert alert-secondary">
+                        <strong>Lote:</strong> @selectedLot.Quantity sacas de @selectedLot.CommodityName<br/>
+                        <strong>Preço Pedido:</strong> @(selectedLot.AskingPrice?.ToString("C2") ?? "A Combinar")
+                    </div>
+                    
+                    <EditForm Model="offer" OnValidSubmit="SubmitOffer">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Sua Oferta (R$ / saca)</label>
+                            <InputNumber class="form-control" @bind-Value="offer.PricePerBag" />
+                            <ValidationMessage For="@(() => offer.PricePerBag)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Mensagem (Opcional)</label>
+                            <InputTextArea class="form-control" @bind-Value="offer.Remarks" rows="2" placeholder="Ex: Pagamento à vista, retirada imediata..." />
+                        </div>
+
+                        <div class="text-end">
+                            <button type="button" class="btn btn-outline-secondary me-2" @onclick="CloseModal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Enviar Oferta</button>
+                        </div>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<CoffeeLotDto>? lots;
+    private bool showModal = false;
+    private CoffeeLotDto? selectedLot;
+    private CreateOfferDto offer = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        lots = await LotService.GetMarketplaceLots();
+    }
+
+    private void OpenOfferModal(CoffeeLotDto lot)
+    {
+        selectedLot = lot;
+        offer = new CreateOfferDto 
+        { 
+            CoffeeLotId = lot.Id,
+            PricePerBag = lot.AskingPrice ?? 0 
+        };
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        selectedLot = null;
+    }
+
+    private async Task SubmitOffer()
+    {
+        try
+        {
+            await OfferService.CreateOffer(offer);
+            Notifications.ShowSuccess("Oferta enviada ao vendedor!");
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            Notifications.ShowError("Erro ao enviar oferta. Verifique se não é seu próprio lote.");
+        }
+    }
+}

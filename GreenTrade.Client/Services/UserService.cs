@@ -10,6 +10,8 @@ public interface IUserService
 {
     Task<IEnumerable<UserDto>> GetUsers();
     Task<UserDto?> GetUserById(int id);
+    Task<bool> UpdateProfile(UpdateProfileRequest request);
+    Task<ApiResponse<string>> ChangePassword(ChangePasswordRequest request);
 }
 
 public class UserService : IUserService
@@ -44,5 +46,24 @@ public class UserService : IUserService
         {
             return null;
         }
+    }
+
+    public async Task<bool> UpdateProfile(UpdateProfileRequest request)
+    {
+        var response = await _httpClient.HttpPutAsJsonAsync("api/users/profile", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<ApiResponse<string>> ChangePassword(ChangePasswordRequest request)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/users/change-password", request);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            return new ApiResponse<string> { Success = true, Message = "Senha alterada com sucesso" };
+        }
+
+        var error = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
+        return error ?? new ApiResponse<string> { Success = false, Message = "Erro ao alterar senha" };
     }
 }

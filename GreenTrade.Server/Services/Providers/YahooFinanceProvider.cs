@@ -88,4 +88,53 @@ public class YahooFinanceProvider : IMarketDataProvider
 
         return results;
     }
+
+    public async Task<IEnumerable<ChartDataDto>> GetHistoryAsync(string symbol, string interval, string range)
+    {
+        var results = new List<ChartDataDto>();
+        
+        if (!_symbolMap.TryGetValue(symbol, out var yahooSymbol))
+        {
+            return results;
+        }
+
+        var url = $"https://query1.finance.yahoo.com/v8/finance/chart/{yahooSymbol}?interval={interval}&range={range}";
+
+        try
+        {
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return results;
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+
+            if (doc.RootElement.TryGetProperty("chart", out var chart) &&
+                chart.TryGetProperty("result", out var resultArr) &&
+                resultArr.GetArrayLength() > 0)
+            {
+                var firstResult = resultArr[0];
+                var timestamps = firstResult.GetProperty("timestamp").EnumerateArray().ToList();
+                var indicators = firstResult.GetProperty("indicators").GetProperty("quote")[0];
+                var closePrices = indicators.GetProperty("close").EnumerateArray().ToList();
+
+                for (int i = 0; i < timestamps.Count; i++)
+                {
+                    if (closePrices[i].ValueKind == JsonValueKind.Number)
+                    {
+                        results.Add(new ChartDataDto
+                        {
+                            Time = timestamps[i].GetInt64(),
+                            Value = Math.Round(closePrices[i].GetDecimal(), 2)
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to fetch history for {symbol} from Yahoo Finance.");
+        }
+
+        return results;
+    }
 }

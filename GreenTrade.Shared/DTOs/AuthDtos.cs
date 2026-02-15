@@ -10,6 +10,8 @@ public class LoginRequest
 
     [Required(ErrorMessage = "Password is required")]
     public string Password { get; set; } = string.Empty;
+
+    public bool RememberMe { get; set; }
 }
 
 public class LoginResponse
@@ -60,5 +62,24 @@ public class ResetPasswordRequest
     
     [Required]
     [Compare("NewPassword", ErrorMessage = "Passwords do not match")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+public class UpdateProfileRequest
+{
+    [Required(ErrorMessage = "Nome é obrigatório")]
+    public string FullName { get; set; } = string.Empty;
+}
+
+public class ChangePasswordRequest
+{
+    [Required(ErrorMessage = "Senha atual é obrigatória")]
+    public string CurrentPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Nova senha é obrigatória")]
+    [MinLength(6, ErrorMessage = "A nova senha deve ter pelo menos 6 caracteres")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    [Compare("NewPassword", ErrorMessage = "As senhas não coincidem")]
     public string ConfirmPassword { get; set; } = string.Empty;
 }

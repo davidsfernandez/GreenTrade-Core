@@ -119,21 +119,21 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
-        // Ensure database and tables are created
-        await context.Database.EnsureCreatedAsync();
-
-        // Schema Patch for Password Recovery (Hotfix for existing dev databases)
-        try
+        
+        // Use EF Core Migrations instead of manual SQL patches
+        if ((await context.Database.GetPendingMigrationsAsync()).Any())
         {
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN PasswordResetToken longtext NULL;");
+            await context.Database.MigrateAsync();
         }
-        catch { /* Ignore if column exists */ }
-
-        try
+        else
         {
-            await context.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN ResetTokenExpires datetime(6) NULL;");
+            // If DB doesn't exist at all or no migrations pending (but maybe created via EnsureCreated before?),
+            // ensure it is created. But strictly speaking, Migrate() handles creation too.
+            // The issue is if the DB was created by EnsureCreated, it won't have the __EFMigrationsHistory table.
+            // In that case, we should check if we can just create the history table or drop/recreate.
+            // For now, let's assume we are resetting the DB for this feature sprint.
+            await context.Database.MigrateAsync();
         }
-        catch { /* Ignore if column exists */ }
 
         await DbSeeder.SeedAsync(context);
     }

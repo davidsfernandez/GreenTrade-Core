@@ -132,10 +132,30 @@
                     <h5 class="m-0 me-2">Histórico de Preços (TradingView)</h5>
                     <small class="text-muted">Arábica (KC) com SMA 14 e RSI 14</small>
                 </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary @(currentInterval == "15m" ? "active" : "")" @onclick='() => ChangeTimeframe("15m", "1d")'>15m</button>
+                    <button type="button" class="btn btn-outline-primary @(currentInterval == "1h" ? "active" : "")" @onclick='() => ChangeTimeframe("1h", "5d")'>1H</button>
+                    <button type="button" class="btn btn-outline-primary @(currentInterval == "1d" ? "active" : "")" @onclick='() => ChangeTimeframe("1d", "1mo")'>1D</button>
+                </div>
             </div>
             <div class="card-body">
                 <div id="incomeChart" style="height: 300px; width: 100%;"></div>
                 <div id="rsiChart" style="height: 150px; width: 100%; margin-top: 10px;"></div>
+                
+                @if (currentRecommendation != null)
+                {
+                    <div class="mt-3 p-3 rounded bg-light-@currentRecommendation.Color border border-@currentRecommendation.Color">
+                        <div class="d-flex align-items-center">
+                            <div class="badge bg-@currentRecommendation.Color me-3 p-2">
+                                <i class="bx @(currentRecommendation.Type == RecommendationType.Buy || currentRecommendation.Type == RecommendationType.StrongBuy ? "bx-trending-up" : "bx-trending-down") fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 text-@currentRecommendation.Color">Recomendação: @currentRecommendation.Message</h6>
+                                <small class="text-muted">Baseado no RSI atual de @currentRecommendation.RSI.ToString("F2")</small>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -211,8 +231,10 @@
 
     private decimal nyPrice;
     private decimal dollarRate;
-    private decimal basis;
     private decimal calculatedPrice;
+    private MarketRecommendation? currentRecommendation;
+    private string currentInterval = "1h";
+    private string currentRange = "5d";
 
     // Chart Data
     private List<ChartDataPoint> chartData = new();
@@ -233,8 +255,7 @@
         nyPrice = arabicaPrice.CurrentPrice;
         dollarRate = dollarPrice.CurrentPrice;
         
-        // Seed initial
-        AddPriceHistory(arabicaPrice.CurrentPrice);
+        await LoadHistory();
 
         try
         {
@@ -244,20 +265,75 @@
         catch { }
     }
 
+    private async Task LoadHistory()
+    {
+        try
+        {
+            var history = await Http.GetFromJsonAsync<List<ChartDataDto>>($"api/marketdata/history/KC?interval={currentInterval}&range={currentRange}");
+            if (history != null && history.Any())
+            {
+                chartData = history.Select(h => new ChartDataPoint { time = h.Time, value = (double)h.Value }).ToList();
+                priceHistory = history.Select(h => h.Value).ToList();
+                
+                if (priceHistory.Count >= period)
+                {
+                    var rsiValues = TechnicalIndicatorsService.CalculateRSI(priceHistory, period);
+                    currentRecommendation = TechnicalIndicatorsService.GetRecommendation(rsiValues.Last());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading history: {ex.Message}");
+        }
+    }
+
+    private async Task ChangeTimeframe(string interval, string range)
+    {
+        currentInterval = interval;
+        currentRange = range;
+        await LoadHistory();
+        
+        // Re-render chart with new data
+        await JSRuntime.InvokeVoidAsync("window.appInterop.createTradingViewChart", "incomeChart", chartData);
+        
+        // Add indicators for history
+        var smaData = TechnicalIndicatorsService.CalculateSMA(priceHistory, period);
+        var rsiData = TechnicalIndicatorsService.CalculateRSI(priceHistory, period);
+        
+        var smaPoints = chartData.Select((d, i) => new { time = d.time, value = (double)smaData[i] }).Where(p => p.value > 0).ToList();
+        var rsiPoints = chartData.Select((d, i) => new { time = d.time, value = (double)rsiData[i] }).Where(p => p.value > 0).ToList();
+
+        await JSRuntime.InvokeVoidAsync("window.appInterop.addIndicatorSeries", "incomeChart", "SMA", "#ff9f43", smaPoints);
+        await JSRuntime.InvokeVoidAsync("window.appInterop.createRsiChart", "rsiChart", rsiPoints);
+        await JSRuntime.InvokeVoidAsync("window.appInterop.syncCharts", "incomeChart", "rsiChart");
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            // 1. Create Main Chart
+            // Initial render with loaded history
             await JSRuntime.InvokeVoidAsync("window.appInterop.createTradingViewChart", "incomeChart", chartData);
             
-            // 2. Create SMA Overlay (Empty initially)
-            await JSRuntime.InvokeVoidAsync("window.appInterop.addIndicatorSeries", "incomeChart", "SMA", "#ff9f43", new List<object>()); 
+            // Indicators for history
+            if (priceHistory.Count >= period)
+            {
+                var smaData = TechnicalIndicatorsService.CalculateSMA(priceHistory, period);
+                var rsiData = TechnicalIndicatorsService.CalculateRSI(priceHistory, period);
+                
+                var smaPoints = chartData.Select((d, i) => new { time = d.time, value = (double)smaData[i] }).Where(p => p.value > 0).ToList();
+                var rsiPoints = chartData.Select((d, i) => new { time = d.time, value = (double)rsiData[i] }).Where(p => p.value > 0).ToList();
 
-            // 3. Create RSI Chart (Separate Pane)
-            await JSRuntime.InvokeVoidAsync("window.appInterop.createRsiChart", "rsiChart", new List<object>());
+                await JSRuntime.InvokeVoidAsync("window.appInterop.addIndicatorSeries", "incomeChart", "SMA", "#ff9f43", smaPoints);
+                await JSRuntime.InvokeVoidAsync("window.appInterop.createRsiChart", "rsiChart", rsiPoints);
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("window.appInterop.addIndicatorSeries", "incomeChart", "SMA", "#ff9f43", new List<object>()); 
+                await JSRuntime.InvokeVoidAsync("window.appInterop.createRsiChart", "rsiChart", new List<object>());
+            }
 
-            // 4. Sync Charts
             await JSRuntime.InvokeVoidAsync("window.appInterop.syncCharts", "incomeChart", "rsiChart");
         }
     }
@@ -311,6 +387,8 @@
             {
                 var rsiPoint = new { time = timestamp, value = (double)currentRSI };
                 JSRuntime.InvokeVoidAsync("window.appInterop.updateRsiSeries", "rsiChart", rsiPoint);
+                
+                currentRecommendation = TechnicalIndicatorsService.GetRecommendation(currentRSI);
             }
         }
     }

@@ -57,6 +57,39 @@ public class UsersController : ControllerBase
             Role = user.Role.ToString()
         });
     }
-    
-    // Additional CRUD methods (Update, Delete) can be added here
+
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
+    {
+        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(email)) return Unauthorized();
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null) return NotFound();
+
+        user.FullName = request.FullName;
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Perfil atualizado com sucesso"));
+    }
+
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    {
+        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(email)) return Unauthorized();
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null) return NotFound();
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+        {
+            return BadRequest(ApiResponse<string>.ErrorResponse("Senha atual incorreta"));
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<string>.SuccessResponse(string.Empty, "Senha alterada com sucesso"));
+    }
 }

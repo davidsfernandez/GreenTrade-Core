@@ -27,6 +27,9 @@ builder.Services.AddSingleton<IPriceCalculatorService, PriceCalculatorService>()
 builder.Services.AddScoped<FormatterService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<PriceAlertService>();
+builder.Services.AddScoped<CoffeeLotService>();
+builder.Services.AddScoped<OfferService>();
+builder.Services.AddScoped<ThemeService>();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 

@@ -1,0 +1,191 @@
+@page "/negotiations"
+@using GreenTrade.Shared.DTOs
+@using GreenTrade.Shared.Enums
+@using GreenTrade.Client.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject OfferService OfferService
+@inject NotificationService Notifications
+@inject FormatterService Formatter
+
+<PageTitle>Negociações - GreenTrade</PageTitle>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h4 class="text-white mb-0"><i class="bx bx-briefcase-alt-2 me-2"></i> Negociações</h4>
+                <p class="mb-0">Gerencie suas propostas de compra e venda.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="nav-align-top mb-4">
+    <ul class="nav nav-tabs nav-fill" role="tablist">
+        <li class="nav-item">
+            <button type="button" class="nav-link @(activeTab == "received" ? "active" : "")" 
+                    @onclick="@(() => activeTab = "received")">
+                <i class="bx bx-down-arrow-circle me-1"></i> Recebidas
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button" class="nav-link @(activeTab == "sent" ? "active" : "")" 
+                    @onclick="@(() => activeTab = "sent")">
+                <i class="bx bx-up-arrow-circle me-1"></i> Enviadas
+            </button>
+        </li>
+    </ul>
+    
+    <div class="tab-content">
+        <!-- RECEIVED OFFERS TAB -->
+        <div class="tab-pane fade @(activeTab == "received" ? "show active" : "")">
+            @if (receivedOffers == null)
+            {
+                <div class="text-center p-3"><div class="spinner-border text-primary"></div></div>
+            }
+            else if (!receivedOffers.Any())
+            {
+                <div class="alert alert-info m-3">Nenhuma proposta recebida até o momento.</div>
+            }
+            else
+            {
+                <div class="table-responsive text-nowrap">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Lote</th>
+                                <th>Comprador</th>
+                                <th>Oferta (Saca)</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var offer in receivedOffers)
+                            {
+                                <tr>
+                                    <td><strong>@offer.CoffeeLotDescription</strong></td>
+                                    <td>@offer.BuyerName</td>
+                                    <td class="text-primary fw-bold">@Formatter.FormatCurrency(offer.PricePerBag)</td>
+                                    <td>@Formatter.FormatCurrency(offer.TotalAmount)</td>
+                                    <td>@RenderStatusBadge(offer.Status)</td>
+                                    <td>@offer.CreatedAt.ToString("dd/MM HH:mm")</td>
+                                    <td>
+                                        @if (offer.Status == "Pending")
+                                        {
+                                            <button class="btn btn-sm btn-success me-1" @onclick="() => Respond(offer.Id, true)" title="Aceitar">
+                                                <i class="bx bx-check"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" @onclick="() => Respond(offer.Id, false)" title="Recusar">
+                                                <i class="bx bx-x"></i>
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <!-- SENT OFFERS TAB -->
+        <div class="tab-pane fade @(activeTab == "sent" ? "show active" : "")">
+            @if (sentOffers == null)
+            {
+                <div class="text-center p-3"><div class="spinner-border text-primary"></div></div>
+            }
+            else if (!sentOffers.Any())
+            {
+                <div class="alert alert-info m-3">Você ainda não enviou propostas.</div>
+            }
+            else
+            {
+                <div class="table-responsive text-nowrap">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Lote</th>
+                                <th>Oferta (Saca)</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var offer in sentOffers)
+                            {
+                                <tr>
+                                    <td><strong>@offer.CoffeeLotDescription</strong></td>
+                                    <td class="text-primary fw-bold">@Formatter.FormatCurrency(offer.PricePerBag)</td>
+                                    <td>@RenderStatusBadge(offer.Status)</td>
+                                    <td>@offer.CreatedAt.ToString("dd/MM HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string activeTab = "received";
+    private List<OfferDto>? receivedOffers;
+    private List<OfferDto>? sentOffers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load in parallel
+        var t1 = OfferService.GetReceivedOffers();
+        var t2 = OfferService.GetMySentOffers();
+        
+        await Task.WhenAll(t1, t2);
+        
+        receivedOffers = t1.Result;
+        sentOffers = t2.Result;
+    }
+
+    private async Task Respond(int id, bool accept)
+    {
+        try 
+        {
+            await OfferService.RespondToOffer(id, accept);
+            Notifications.ShowSuccess(accept ? "Oferta aceita!" : "Oferta recusada.");
+            // Reload
+            receivedOffers = await OfferService.GetReceivedOffers();
+        }
+        catch (Exception ex)
+        {
+            Notifications.ShowError("Erro ao processar resposta.");
+        }
+    }
+
+    private RenderFragment RenderStatusBadge(string status) => builder =>
+    {
+        var badgeClass = status switch
+        {
+            "Pending" => "bg-label-warning",
+            "Accepted" => "bg-label-success",
+            "Rejected" => "bg-label-danger",
+            _ => "bg-label-secondary"
+        };
+        
+        var ptStatus = status switch
+        {
+            "Pending" => "Pendente",
+            "Accepted" => "Aceita",
+            "Rejected" => "Recusada",
+            "Cancelled" => "Cancelada",
+            _ => status
+        };
+
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", $"badge {badgeClass}");
+        builder.AddContent(2, ptStatus);
+        builder.CloseElement();
+    };
+}

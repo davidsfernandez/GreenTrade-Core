@@ -15,6 +15,22 @@ window.appInterop = {
         document.documentElement.classList.toggle('layout-menu-expanded');
     },
 
+    setTheme: function (isDark) {
+        if (isDark) {
+            document.documentElement.classList.remove('light-style');
+            document.documentElement.classList.add('dark-style');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark-style');
+            document.documentElement.classList.add('light-style');
+            localStorage.setItem('theme', 'light');
+        }
+    },
+
+    getTheme: function () {
+        return localStorage.getItem('theme') || 'light';
+    },
+
     // --- TradingView Logic ---
 
     createTradingViewChart: function (elementId, initialData) {

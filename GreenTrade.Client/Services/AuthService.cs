@@ -31,7 +31,7 @@ public class AuthService : IAuthService
 
         if (response != null && response.Success)
         {
-            await ((CustomAuthStateProvider)_authStateProvider).MarkUserAsAuthenticated(response.Token);
+            await ((CustomAuthStateProvider)_authStateProvider).MarkUserAsAuthenticated(response.Token, request.RememberMe);
         }
 
         return response ?? new LoginResponse { Success = false, Message = "Unknown error" };

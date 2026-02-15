@@ -5,6 +5,7 @@
 @inject IJSRuntime JSRuntime
 @inject GreenTrade.Client.Services.MarketDataClientService MarketService
 @inject GreenTrade.Client.Services.NotificationService Notifications
+@inject GreenTrade.Client.Services.ThemeService ThemeService
 @implements IDisposable
 
 <div class="layout-wrapper layout-content-navbar">
@@ -38,6 +39,14 @@
                     <!-- /Search -->
 
                     <ul class="navbar-nav flex-row align-items-center ms-auto">
+                        <!-- Theme Toggle -->
+                        <li class="nav-item me-2">
+                            <a class="nav-link" href="javascript:void(0);" @onclick="ToggleTheme">
+                                <i class='bx @(ThemeService.IsDarkMode ? "bx-sun" : "bx-moon") bx-sm'></i>
+                            </a>
+                        </li>
+                        <!-- /Theme Toggle -->
+
                         <!-- User -->
                         <li class="nav-item navbar-dropdown dropdown-user dropdown">
                             <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
@@ -121,6 +130,9 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
+        await ThemeService.InitializeAsync();
+        ThemeService.OnThemeChanged += StateHasChanged;
+        
         MarketService.OnAlertReceived += HandleAlert;
         // Ensure service is started even if not on Dashboard
         await MarketService.StartAsync();
@@ -132,6 +144,11 @@
         {
             await JSRuntime.InvokeVoidAsync("window.appInterop.initializeSneatMenu");
         }
+    }
+
+    private async Task ToggleTheme()
+    {
+        await ThemeService.ToggleTheme();
     }
 
     private void HandleAlert(string message)
@@ -153,6 +170,7 @@
 
     public void Dispose()
     {
+        ThemeService.OnThemeChanged -= StateHasChanged;
         MarketService.OnAlertReceived -= HandleAlert;
     }
 }

@@ -45,5 +45,31 @@ public static class DbSeeder
             });
             await context.SaveChangesAsync();
         }
+
+        // Seed Warehouses
+        if (!await context.Warehouses.AnyAsync())
+        {
+            context.Warehouses.AddRange(
+                new Warehouse { Name = "Cooxupé - Complexo Japy", City = "Guaxupé", State = "MG", Address = "Rod. MG 450, km 35" },
+                new Warehouse { Name = "Minasul Varginha", City = "Varginha", State = "MG", Address = "Av. do Café, 1200" },
+                new Warehouse { Name = "Expocacer", City = "Patrocínio", State = "MG", Address = "Av. Faria Pereira, 3888" },
+                new Warehouse { Name = "Armazém Gerais Leste de Minas", City = "Manhuaçu", State = "MG" }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // Seed Certifications
+        if (!await context.Certifications.AnyAsync())
+        {
+            context.Certifications.AddRange(
+                new Certification { Name = "Rainforest Alliance", Organization = "Rainforest Alliance", Description = "Sustainable agriculture standard." },
+                new Certification { Name = "UTZ Certified", Organization = "UTZ", Description = "Sustainable farming of coffee." },
+                new Certification { Name = "Fair Trade", Organization = "Fairtrade International", Description = "Fair prices and better working conditions." },
+                new Certification { Name = "Orgânico Brasil", Organization = "MAPA", Description = "Produto orgânico certificado pelo governo brasileiro." },
+                new Certification { Name = "Cerrado Mineiro", Organization = "Federação dos Cafeicultores do Cerrado", Description = "Denominação de Origem." },
+                new Certification { Name = "4C", Organization = "4C Services", Description = "Common Code for the Coffee Community." }
+            );
+            await context.SaveChangesAsync();
+        }
     }
 }

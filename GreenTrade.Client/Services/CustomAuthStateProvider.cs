@@ -18,6 +18,11 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+        
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            token = await _jsRuntime.InvokeAsync<string>("sessionStorage.getItem", "authToken");
+        }
 
         if (string.IsNullOrWhiteSpace(token))
         {
@@ -28,9 +33,11 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt")));
     }
 
-    public async Task MarkUserAsAuthenticated(string token)
+    public async Task MarkUserAsAuthenticated(string token, bool rememberMe = false)
     {
-        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "authToken", token);
+        var storage = rememberMe ? "localStorage" : "sessionStorage";
+        await _jsRuntime.InvokeVoidAsync($"{storage}.setItem", "authToken", token);
+        
         var authState = Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt"))));
         NotifyAuthenticationStateChanged(authState);
     }
@@ -38,6 +45,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     public async Task MarkUserAsLoggedOut()
     {
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        await _jsRuntime.InvokeVoidAsync("sessionStorage.removeItem", "authToken");
         var authState = Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
         NotifyAuthenticationStateChanged(authState);
     }
@@ -47,7 +55,41 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         var payload = jwt.Split('.')[1];
         var jsonBytes = ParseBase64WithoutPadding(payload);
         var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-        return keyValuePairs!.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString()!));
+        
+        var claims = new List<Claim>();
+        
+        if (keyValuePairs != null)
+        {
+            foreach (var kvp in keyValuePairs)
+            {
+                var value = kvp.Value.ToString() ?? string.Empty;
+                
+                // Map standard JWT claims to ClaimTypes
+                switch (kvp.Key)
+                {
+                    case "unique_name":
+                    case "name":
+                        claims.Add(new Claim(ClaimTypes.Name, value));
+                        break;
+                    case "email":
+                    case "emailaddress":
+                        claims.Add(new Claim(ClaimTypes.Email, value));
+                        break;
+                    case "role":
+                        claims.Add(new Claim(ClaimTypes.Role, value));
+                        break;
+                    case "nameid":
+                    case "sub":
+                        claims.Add(new Claim(ClaimTypes.NameIdentifier, value));
+                        break;
+                    default:
+                        claims.Add(new Claim(kvp.Key, value));
+                        break;
+                }
+            }
+        }
+        
+        return claims;
     }
 
     private byte[] ParseBase64WithoutPadding(string base64)
