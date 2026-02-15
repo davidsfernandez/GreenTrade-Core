@@ -4,6 +4,7 @@ using GreenTrade.Server.Data;
 using GreenTrade.Server.Hubs;
 using GreenTrade.Server.Middleware;
 using GreenTrade.Server.Services;
+using GreenTrade.Server.Services.Providers;
 using GreenTrade.Shared.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +55,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         mysqlOptions => mysqlOptions.EnableRetryOnFailure()));
 
 // Services
+builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceProvider>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IPriceAlertService, PriceAlertService>();
