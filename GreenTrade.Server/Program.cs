@@ -55,6 +55,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Services
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IPriceAlertService, PriceAlertService>();
 builder.Services.AddSingleton<IPriceCalculatorService, PriceCalculatorService>();
 builder.Services.AddHostedService<MarketDataService>();

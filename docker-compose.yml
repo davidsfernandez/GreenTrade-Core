@@ -12,9 +12,15 @@ services:
       - JWT__Key=SuperSecretKeyForGreenTradeTradingPlatform2026!
       - JWT__Issuer=GreenTradeAPI
       - JWT__Audience=GreenTradeClient
+      - EmailSettings__SmtpServer=mailpit
+      - EmailSettings__SmtpPort=1025
+      - EmailSettings__SenderEmail=no-reply@greentrade.com
+      - EmailSettings__SenderName=GreenTrade Support
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   db:
     image: mysql:8.0
@@ -24,13 +30,20 @@ services:
       MYSQL_ROOT_PASSWORD: root_password
       MYSQL_DATABASE: greentrade_db
     ports:
-      - "3310:3310"
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
+
+  mailpit:
+    image: axllent/mailpit
+    restart: always
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
 volumes:
   mysql_data:

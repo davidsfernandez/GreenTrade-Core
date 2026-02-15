@@ -24,4 +24,8 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public List<PriceAlert> PriceAlerts { get; set; } = new();
+
+    // Password Recovery Fields
+    public string? PasswordResetToken { get; set; }
+    public DateTime? ResetTokenExpires { get; set; }
 }

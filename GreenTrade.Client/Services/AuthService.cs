@@ -9,6 +9,8 @@ public interface IAuthService
     Task<LoginResponse> Login(LoginRequest request);
     Task<LoginResponse> Register(RegisterRequest request);
     Task Logout();
+    Task<bool> ForgotPassword(string email);
+    Task<bool> ResetPassword(ResetPasswordRequest request);
 }
 
 public class AuthService : IAuthService
@@ -51,5 +53,17 @@ public class AuthService : IAuthService
     public async Task Logout()
     {
         await ((CustomAuthStateProvider)_authStateProvider).MarkUserAsLoggedOut();
+    }
+
+    public async Task<bool> ForgotPassword(string email)
+    {
+        var result = await _httpClient.PostAsJsonAsync("api/auth/forgot-password", new ForgotPasswordRequest { Email = email });
+        return result.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> ResetPassword(ResetPasswordRequest request)
+    {
+        var result = await _httpClient.PostAsJsonAsync("api/auth/reset-password", request);
+        return result.IsSuccessStatusCode;
     }
 }
