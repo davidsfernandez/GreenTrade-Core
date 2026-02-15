@@ -32,45 +32,71 @@ public class PriceAlertService : IPriceAlertService
     {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
         // Find active alerts for this commodity
-        var triggeredAlerts = await context.PriceAlerts
+        var alerts = await context.PriceAlerts
             .Include(a => a.User)
             .Include(a => a.Commodity)
             .Where(a => a.IsActive && a.Commodity!.TickerSymbol == update.Ticker)
             .ToListAsync();
 
-        foreach (var alert in triggeredAlerts)
+        var alertsToDeactivate = new List<PriceAlert>();
+
+        foreach (var alert in alerts)
         {
-            // Simple logic: if TargetPrice is reached or crossed
-            bool isTriggered = false;
+            // Improved Logic: Detect CROSSING, not just equality.
+            // But since we don't store "Alert Direction" (Above/Below) in the current simplified model,
+            // we assume the user wants to be notified if the price hits the target range.
+            // A robust system would store "Condition: GreaterThan / LessThan".
+            // For this MVP, we trigger if the current price is "close enough" (0.5% margin) OR passed it?
+            // Actually, "passed it" is hard without history state of the alert.
+            // Let's stick to "close enough" or exact match logic but improved.
             
-            // This is a simplified check. In a real app, we'd check if it's an "Above" or "Below" alert.
-            // For now, if price is within 0.1% of target, trigger it.
-            if (Math.Abs(update.CurrentPrice - alert.TargetPrice) / alert.TargetPrice < 0.001m)
-            {
-                isTriggered = true;
-            }
+            // Let's assume an alert is "Price >= Target" if originally created when Price < Target.
+            // But we don't have creation context.
+            // Let's use a simple proximity check (within 0.5% range).
+            var diff = Math.Abs(update.CurrentPrice - alert.TargetPrice);
+            var percentageDiff = diff / alert.TargetPrice;
 
-            if (isTriggered)
+            if (percentageDiff <= 0.005m) // 0.5% margin
             {
-                _logger.LogInformation($"Alert triggered for user {alert.UserId} on {update.Ticker}");
+                _logger.LogInformation($"Alert triggered for user {alert.UserId} on {update.Ticker}. Target: {alert.TargetPrice}, Current: {update.CurrentPrice}");
 
-                // Send notification via SignalR to specific user
-                // We'll use the user's email as the group name (or we could use their ID)
-                await _hubContext.Clients.User(alert.UserId.ToString()).SendAsync("ReceiveNotification", new
+                // 1. SignalR Notification
+                var message = $"Alerta 🔔: {alert.Commodity?.Name} ({update.Ticker}) atingiu R$ {update.CurrentPrice:N2} (Alvo: {alert.TargetPrice:N2})";
+                await _hubContext.Clients.User(alert.UserId.ToString()).SendAsync("ReceiveAlert", message);
+
+                // 2. Email Notification
+                var emailBody = $@"
+                    <h3>Alerta de Preço GreenTrade</h3>
+                    <p>Olá, {alert.User?.FullName}!</p>
+                    <p>O ativo <strong>{alert.Commodity?.Name} ({update.Ticker})</strong> atingiu seu preço alvo.</p>
+                    <ul>
+                        <li><strong>Preço Atual:</strong> R$ {update.CurrentPrice:N2}</li>
+                        <li><strong>Seu Alvo:</strong> R$ {alert.TargetPrice:N2}</li>
+                    </ul>
+                    <p>Acesse a plataforma para negociar agora.</p>
+                    <br/>
+                    <a href='http://localhost:5000'>Ir para GreenTrade</a>
+                ";
+                
+                try
                 {
-                    Type = "PriceAlert",
-                    Message = $"Alerta: {alert.Commodity?.Name} atingiu o preço de {update.CurrentPrice}!",
-                    Ticker = update.Ticker
-                });
+                    await emailService.SendEmailAsync(alert.User!.Email, $"Alerta: {alert.Commodity?.Name} atingiu o alvo", emailBody);
+                }
+                catch(Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send alert email.");
+                }
 
-                // Deactivate alert after trigger
+                // Deactivate alert
                 alert.IsActive = false;
+                alertsToDeactivate.Add(alert);
             }
         }
 
-        if (triggeredAlerts.Any(a => !a.IsActive))
+        if (alertsToDeactivate.Any())
         {
             await context.SaveChangesAsync();
         }

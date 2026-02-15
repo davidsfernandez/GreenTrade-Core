@@ -13,6 +13,8 @@ public class MarketDataClientService : IAsyncDisposable
     private HubConnection? _hubConnection;
     
     public event Action<PriceUpdateDto>? OnPriceUpdate;
+    public event Action<string>? OnAlertReceived;
+
     public HubConnectionState State => _hubConnection?.State ?? HubConnectionState.Disconnected;
 
     public MarketDataClientService(NavigationManager navigationManager)
@@ -33,6 +35,11 @@ public class MarketDataClientService : IAsyncDisposable
         _hubConnection.On<PriceUpdateDto>("ReceivePriceUpdate", (update) =>
         {
             OnPriceUpdate?.Invoke(update);
+        });
+
+        _hubConnection.On<string>("ReceiveAlert", (message) =>
+        {
+            OnAlertReceived?.Invoke(message);
         });
 
         await _hubConnection.StartAsync();

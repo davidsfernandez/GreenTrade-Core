@@ -3,6 +3,9 @@
 @inject GreenTrade.Client.Services.IAuthService AuthService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject GreenTrade.Client.Services.MarketDataClientService MarketService
+@inject GreenTrade.Client.Services.NotificationService Notifications
+@implements IDisposable
 
 <div class="layout-wrapper layout-content-navbar">
     <div class="layout-container">
@@ -35,7 +38,6 @@
                     <!-- /Search -->
 
                     <ul class="navbar-nav flex-row align-items-center ms-auto">
-                        <!-- Place this tag where you want the button to render. -->
                         <!-- User -->
                         <li class="nav-item navbar-dropdown dropdown-user dropdown">
                             <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
@@ -117,13 +119,25 @@
 </div>
 
 @code {
+    protected override async Task OnInitializedAsync()
+    {
+        MarketService.OnAlertReceived += HandleAlert;
+        // Ensure service is started even if not on Dashboard
+        await MarketService.StartAsync();
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            // Call JS to initialize menu
             await JSRuntime.InvokeVoidAsync("window.appInterop.initializeSneatMenu");
         }
+    }
+
+    private void HandleAlert(string message)
+    {
+        Notifications.ShowSuccess(message);
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task ToggleSidebar()
@@ -135,5 +149,10 @@
     {
         await AuthService.Logout();
         Navigation.NavigateTo("login");
+    }
+
+    public void Dispose()
+    {
+        MarketService.OnAlertReceived -= HandleAlert;
     }
 }
