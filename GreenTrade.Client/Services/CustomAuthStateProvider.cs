@@ -18,12 +18,10 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
-        bool isPersistent = true;
         
         if (string.IsNullOrWhiteSpace(token))
         {
             token = await _jsRuntime.InvokeAsync<string>("sessionStorage.getItem", "authToken");
-            isPersistent = false;
         }
 
         if (string.IsNullOrWhiteSpace(token) || IsTokenExpired(token))
