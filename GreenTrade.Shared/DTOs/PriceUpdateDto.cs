@@ -10,3 +10,9 @@ public class PriceUpdateDto
     public decimal ChangePercentage { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
+
+public class ChartDataDto
+{
+    public long Time { get; set; }
+    public decimal Value { get; set; }
+}

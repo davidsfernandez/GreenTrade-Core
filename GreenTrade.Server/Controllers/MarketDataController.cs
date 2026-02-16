@@ -1,4 +1,5 @@
 using GreenTrade.Server.Services.Providers;
+using GreenTrade.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

@@ -15,14 +15,14 @@ public interface IPriceCalculatorService
     /// (PriceNY / 100) * 132.276 * DollarRate = Price per bag in BRL.
     /// Simplified: PriceNY * 1.32276 * DollarRate.
     /// </summary>
-    decimal CalculateCoffeeBagPrice(decimal priceNyCentavos, decimal dollarRate, decimal basisBrl);
+    decimal CalculateCoffeeBagPrice(decimal priceNyCentavos, decimal dollarRate, decimal basisBrl, decimal adjustmentFactor = 1.0m);
 }
 
 public class PriceCalculatorService : IPriceCalculatorService
 {
     private const decimal LbsIn60KgBag = 132.2762m;
 
-    public decimal CalculateCoffeeBagPrice(decimal priceNyCentavos, decimal dollarRate, decimal basisBrl)
+    public decimal CalculateCoffeeBagPrice(decimal priceNyCentavos, decimal dollarRate, decimal basisBrl, decimal adjustmentFactor = 1.0m)
     {
         if (priceNyCentavos <= 0 || dollarRate <= 0) return 0;
 
@@ -35,7 +35,9 @@ public class PriceCalculatorService : IPriceCalculatorService
         // Convert Dollars/Bag to BRL/Bag
         decimal priceBrlPerBag = priceUsdPerBag * dollarRate;
 
-        // Apply Basis (Differential)
-        return Math.Round(priceBrlPerBag + basisBrl, 2);
+        // Apply Basis (Differential) and Adjustment
+        decimal finalPrice = (priceBrlPerBag + basisBrl) * adjustmentFactor;
+
+        return Math.Round(finalPrice, 2);
     }
 }

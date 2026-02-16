@@ -186,18 +186,34 @@
 
     private async Task LoadData()
     {
-        lots = await LotService.GetMyLots();
-        commodities = await AlertService.GetCommodities(); // Reusing the endpoint
-        warehouses = await LotService.GetWarehouses();
-        certifications = await LotService.GetCertifications();
+        try 
+        {
+            var t1 = LotService.GetMyLots();
+            var t2 = LotService.GetWarehouses();
+            var t3 = LotService.GetCertifications();
+            var t4 = AlertService.GetCommodities();
 
-        if (commodities.Any() && newLot.CommodityId == 0)
-        {
-            newLot.CommodityId = commodities.First().Id;
+            await Task.WhenAll(t1, t2, t3, t4);
+
+            lots = t1.Result;
+            warehouses = t2.Result;
+            certifications = t3.Result;
+            commodities = t4.Result;
+
+            if (commodities.Any() && newLot.CommodityId == 0)
+            {
+                newLot.CommodityId = commodities.First().Id;
+            }
+            if (warehouses.Any() && newLot.WarehouseId == 0)
+            {
+                newLot.WarehouseId = warehouses.First().Id;
+            }
         }
-        if (warehouses.Any() && newLot.WarehouseId == 0)
+        catch (Exception ex)
         {
-            newLot.WarehouseId = warehouses.First().Id;
+            Notifications.ShowError("Erro ao carregar dados. Verifique sua conexão ou login.");
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+            lots = new(); // Initialize to empty to stop spinner
         }
     }
 

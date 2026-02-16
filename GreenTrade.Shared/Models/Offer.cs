@@ -25,7 +25,9 @@ public class Offer
     public OfferStatus Status { get; set; } = OfferStatus.Pending;
 
     [MaxLength(500)]
-    public string? Remarks { get; set; } // Message from buyer
+    public string? Remarks { get; set; } // Message from buyer/seller during negotiation
+
+    public int? LastModifiedById { get; set; } // The user who made the last change (Buyer or Seller)
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RespondedAt { get; set; }

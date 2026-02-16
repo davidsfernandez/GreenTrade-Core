@@ -130,7 +130,14 @@
             <div class="card-header d-flex align-items-center justify-content-between pb-0">
                 <div class="card-title mb-0">
                     <h5 class="m-0 me-2">Histórico de Preços (TradingView)</h5>
-                    <small class="text-muted">Arábica (KC) com SMA 14 e RSI 14</small>
+                    <div class="d-flex gap-3 mt-1">
+                        <small class="text-muted">Arábica (KC) com SMA 14 e RSI 14</small>
+                        @if (currentSupport > 0)
+                        {
+                            <small class="text-success fw-bold">SUP: @Formatter.FormatCurrency(currentSupport)</small>
+                            <small class="text-danger fw-bold">RES: @Formatter.FormatCurrency(currentResistance)</small>
+                        }
+                    </div>
                 </div>
                 <div class="btn-group btn-group-sm" role="group">
                     <button type="button" class="btn btn-outline-primary @(currentInterval == "15m" ? "active" : "")" @onclick='() => ChangeTimeframe("15m", "1d")'>15m</button>
@@ -231,8 +238,11 @@
 
     private decimal nyPrice;
     private decimal dollarRate;
+    private decimal basis;
     private decimal calculatedPrice;
     private MarketRecommendation? currentRecommendation;
+    private decimal currentSupport;
+    private decimal currentResistance;
     private string currentInterval = "1h";
     private string currentRange = "5d";
 
@@ -275,11 +285,17 @@
                 chartData = history.Select(h => new ChartDataPoint { time = h.Time, value = (double)h.Value }).ToList();
                 priceHistory = history.Select(h => h.Value).ToList();
                 
+                // Technical Indicators
                 if (priceHistory.Count >= period)
                 {
                     var rsiValues = TechnicalIndicatorsService.CalculateRSI(priceHistory, period);
                     currentRecommendation = TechnicalIndicatorsService.GetRecommendation(rsiValues.Last());
                 }
+
+                // Support & Resistance
+                var levels = TechnicalIndicatorsService.CalculateSupportResistance(priceHistory);
+                currentSupport = levels.Support;
+                currentResistance = levels.Resistance;
             }
         }
         catch (Exception ex)

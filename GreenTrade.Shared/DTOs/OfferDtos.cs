@@ -9,10 +9,15 @@ public class OfferDto
     public string CoffeeLotDescription { get; set; } = string.Empty; // e.g. "100 bags Arabica"
     public int BuyerId { get; set; }
     public string BuyerName { get; set; } = string.Empty;
+    public string SellerName { get; set; } = string.Empty;
+    public string CommodityName { get; set; } = string.Empty;
+    public string WarehouseName { get; set; } = string.Empty;
+    public string WarehouseCity { get; set; } = string.Empty;
     public decimal PricePerBag { get; set; }
     public int Quantity { get; set; }
     public decimal TotalAmount => PricePerBag * Quantity;
     public string Status { get; set; } = string.Empty;
+    public string? Remarks { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -32,5 +37,9 @@ public class CreateOfferDto
 public class UpdateOfferStatusDto
 {
     [Required]
-    public bool IsAccepted { get; set; } // True = Accept, False = Reject
+    public string NewStatus { get; set; } = string.Empty; // Accepted, Rejected, Countered
+
+    public decimal? CounterPrice { get; set; } // Price proposed in case of a counter-offer
+    
+    public string? Remarks { get; set; }
 }

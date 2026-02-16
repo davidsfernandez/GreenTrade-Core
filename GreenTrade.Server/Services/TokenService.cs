@@ -27,13 +27,14 @@ public class TokenService : ITokenService
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Role, user.Role.ToString())
+            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim("role", user.Role.ToString()) // Add explicit 'role' claim for better compatibility
         };
 
         var keyString = _config["JWT:Key"];
         if (string.IsNullOrEmpty(keyString) || keyString.Length < 16)
         {
-            keyString = "EstaEsUnaClaveDeRespaldoMuyLargaYSegura2026!"; // Clave de respaldo si falla la config
+            keyString = "fallback_key_for_dev_long_enough_security_2026!"; 
         }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));

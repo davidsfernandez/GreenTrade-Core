@@ -27,4 +27,10 @@ public class ReferencesController : ControllerBase
     {
         return await _context.Certifications.ToListAsync();
     }
+
+    [HttpGet("commodities")]
+    public async Task<ActionResult<IEnumerable<Commodity>>> GetCommodities()
+    {
+        return await _context.Commodities.ToListAsync();
+    }
 }

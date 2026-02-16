@@ -74,13 +74,22 @@
                                     <td>@RenderStatusBadge(offer.Status)</td>
                                     <td>@offer.CreatedAt.ToString("dd/MM HH:mm")</td>
                                     <td>
-                                        @if (offer.Status == "Pending")
+                                        @if (offer.Status == "Pending" || offer.Status == "Countered")
                                         {
-                                            <button class="btn btn-sm btn-success me-1" @onclick="() => Respond(offer.Id, true)" title="Aceitar">
+                                            <button class="btn btn-sm btn-success me-1" @onclick='() => Respond(offer.Id, "Accepted")' title="Aceitar">
                                                 <i class="bx bx-check"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-danger" @onclick="() => Respond(offer.Id, false)" title="Recusar">
+                                            <button class="btn btn-sm btn-info me-1" @onclick="() => OpenCounterModal(offer)" data-bs-toggle="modal" data-bs-target="#counterOfferModal" title="Contraproposta">
+                                                <i class="bx bx-edit-alt"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" @onclick='() => Respond(offer.Id, "Rejected")' title="Recusar">
                                                 <i class="bx bx-x"></i>
+                                            </button>
+                                        }
+                                        else if (offer.Status == "Accepted")
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenContractModal(offer)" data-bs-toggle="modal" data-bs-target="#contractModal">
+                                                <i class="bx bx-file me-1"></i> Contrato
                                             </button>
                                         }
                                     </td>
@@ -112,6 +121,7 @@
                                 <th>Oferta (Saca)</th>
                                 <th>Status</th>
                                 <th>Data</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -122,6 +132,32 @@
                                     <td class="text-primary fw-bold">@Formatter.FormatCurrency(offer.PricePerBag)</td>
                                     <td>@RenderStatusBadge(offer.Status)</td>
                                     <td>@offer.CreatedAt.ToString("dd/MM HH:mm")</td>
+                                    <td>
+                                        @if (offer.Status == "Countered")
+                                        {
+                                            <button class="btn btn-sm btn-success me-1" @onclick='() => Respond(offer.Id, "Accepted")' title="Aceitar Contraproposta">
+                                                <i class="bx bx-check"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-info me-1" @onclick="() => OpenCounterModal(offer)" data-bs-toggle="modal" data-bs-target="#counterOfferModal" title="Nova Contraproposta">
+                                                <i class="bx bx-edit-alt"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" @onclick='() => Respond(offer.Id, "Rejected")' title="Recusar">
+                                                <i class="bx bx-x"></i>
+                                            </button>
+                                        }
+                                        else if (offer.Status == "Pending")
+                                        {
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Cancel(offer.Id)" title="Cancelar Proposta">
+                                                <i class="bx bx-trash"></i> Cancelar
+                                            </button>
+                                        }
+                                        else if (offer.Status == "Accepted")
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenContractModal(offer)" data-bs-toggle="modal" data-bs-target="#contractModal">
+                                                <i class="bx bx-file me-1"></i> Contrato
+                                            </button>
+                                        }
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -132,14 +168,133 @@
     </div>
 </div>
 
+<!-- Counter Offer Modal -->
+<div class="modal fade" id="counterOfferModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Fazer Contraproposta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (selectedOffer != null)
+                {
+                    <div class="alert alert-light border mb-3">
+                        <small class="text-muted d-block">Preço Atual:</small>
+                        <span class="fw-bold">@Formatter.FormatCurrency(selectedOffer.PricePerBag)</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Novo Preço por Saca (R$)</label>
+                        <input type="number" class="form-control" @bind="counterData.CounterPrice" step="0.01" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observações / Condições</label>
+                        <textarea class="form-control" @bind="counterData.Remarks" rows="3" placeholder="Ex: Pagamento à vista, entrega em 30 dias..."></textarea>
+                    </div>
+                }
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contract Summary Modal -->
+<div class="modal fade" id="contractModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title">Resumo do Contrato Digital</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="printableContract">
+                @if (selectedOffer != null)
+                {
+                    <div class="text-center mb-4">
+                        <h4 class="mb-0">GreenTrade Core</h4>
+                        <small class="text-muted text-uppercase">Comprovante de Negociação Agrícola</small>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <h6 class="fw-bold text-uppercase small text-muted mb-2">Vendedor</h6>
+                            <p class="mb-0">@selectedOffer.SellerName</p>
+                        </div>
+                        <div class="col-6 text-end">
+                            <h6 class="fw-bold text-uppercase small text-muted mb-2">Comprador</h6>
+                            <p class="mb-0">@selectedOffer.BuyerName</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered bg-light">
+                            <tbody>
+                                <tr>
+                                    <th class="w-50 text-uppercase small">Produto</th>
+                                    <td>@selectedOffer.CommodityName</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-uppercase small">Quantidade</th>
+                                    <td>@selectedOffer.Quantity sacas (60kg)</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-uppercase small">Preço Fechado</th>
+                                    <td class="fw-bold text-success">@Formatter.FormatCurrency(selectedOffer.PricePerBag) / saca</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-uppercase small">Total da Operação</th>
+                                    <td class="fw-bold">@Formatter.FormatCurrency(selectedOffer.TotalAmount)</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-uppercase small">Local de Entrega</th>
+                                    <td>@selectedOffer.WarehouseName - @selectedOffer.WarehouseCity</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(selectedOffer.Remarks))
+                    {
+                        <div class="mt-4">
+                            <h6 class="fw-bold text-uppercase small text-muted mb-2">Observações Adicionais</h6>
+                            <div class="p-3 bg-light rounded font-italic">
+                                "@selectedOffer.Remarks"
+                            </div>
+                        </div>
+                    }
+
+                    <div class="mt-5 pt-4 text-center border-top">
+                        <small class="text-muted">Documento gerado em @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</small>
+                        <br />
+                        <small class="text-muted">ID da Transação: #OFF-@selectedOffer.Id.ToString("D6")</small>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" onclick="window.print()">
+                    <i class="bx bx-printer me-1"></i> Imprimir Resumo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @code {
     private string activeTab = "received";
     private List<OfferDto>? receivedOffers;
     private List<OfferDto>? sentOffers;
+    
+    private OfferDto? selectedOffer;
+    private UpdateOfferStatusDto counterData = new();
 
     protected override async Task OnInitializedAsync()
     {
-        // Load in parallel
+        await LoadOffers();
+    }
+
+    private async Task LoadOffers()
+    {
         var t1 = OfferService.GetReceivedOffers();
         var t2 = OfferService.GetMySentOffers();
         
@@ -149,16 +304,73 @@
         sentOffers = t2.Result;
     }
 
-    private async Task Respond(int id, bool accept)
+    private void OpenCounterModal(OfferDto offer)
+    {
+        selectedOffer = offer;
+        counterData = new UpdateOfferStatusDto 
+        { 
+            NewStatus = "Countered", 
+            CounterPrice = offer.PricePerBag,
+            Remarks = ""
+        };
+    }
+
+    private void OpenContractModal(OfferDto offer)
+    {
+        selectedOffer = offer;
+    }
+
+    private async Task SubmitCounterOffer()
+    {
+        if (selectedOffer == null) return;
+        
+        if (counterData.CounterPrice <= 0)
+        {
+            Notifications.ShowError("O preço deve ser maior que zero.");
+            return;
+        }
+
+        await Respond(selectedOffer.Id, "Countered", counterData.CounterPrice, counterData.Remarks);
+    }
+
+    private async Task Cancel(int id)
+    {
+        try
+        {
+            await OfferService.CancelOffer(id);
+            Notifications.ShowInfo("Proposta cancelada.");
+            await LoadOffers();
+        }
+        catch (Exception)
+        {
+            Notifications.ShowError("Erro ao cancelar proposta.");
+        }
+    }
+
+    private async Task Respond(int id, string status, decimal? price = null, string? remarks = null)
     {
         try 
         {
-            await OfferService.RespondToOffer(id, accept);
-            Notifications.ShowSuccess(accept ? "Oferta aceita!" : "Oferta recusada.");
-            // Reload
-            receivedOffers = await OfferService.GetReceivedOffers();
+            var dto = new UpdateOfferStatusDto 
+            { 
+                NewStatus = status, 
+                CounterPrice = price, 
+                Remarks = remarks 
+            };
+            
+            await OfferService.RespondToOffer(id, dto);
+            
+            string msg = status switch {
+                "Accepted" => "Oferta aceita!",
+                "Rejected" => "Oferta recusada.",
+                "Countered" => "Contraproposta enviada!",
+                _ => "Resposta enviada."
+            };
+            
+            Notifications.ShowSuccess(msg);
+            await LoadOffers();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             Notifications.ShowError("Erro ao processar resposta.");
         }
@@ -171,6 +383,7 @@
             "Pending" => "bg-label-warning",
             "Accepted" => "bg-label-success",
             "Rejected" => "bg-label-danger",
+            "Countered" => "bg-label-info",
             _ => "bg-label-secondary"
         };
         
@@ -179,6 +392,7 @@
             "Pending" => "Pendente",
             "Accepted" => "Aceita",
             "Rejected" => "Recusada",
+            "Countered" => "Contraproposta",
             "Cancelled" => "Cancelada",
             _ => status
         };

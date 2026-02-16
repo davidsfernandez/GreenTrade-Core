@@ -1,6 +1,7 @@
 using GreenTrade.Shared.DTOs;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace GreenTrade.Client.Services;
 
@@ -10,6 +11,7 @@ namespace GreenTrade.Client.Services;
 public class MarketDataClientService : IAsyncDisposable
 {
     private readonly NavigationManager _navigationManager;
+    private readonly IJSRuntime _jsRuntime;
     private HubConnection? _hubConnection;
     
     public event Action<PriceUpdateDto>? OnPriceUpdate;
@@ -17,9 +19,10 @@ public class MarketDataClientService : IAsyncDisposable
 
     public HubConnectionState State => _hubConnection?.State ?? HubConnectionState.Disconnected;
 
-    public MarketDataClientService(NavigationManager navigationManager)
+    public MarketDataClientService(NavigationManager navigationManager, IJSRuntime jsRuntime)
     {
         _navigationManager = navigationManager;
+        _jsRuntime = jsRuntime;
     }
 
     public async Task StartAsync()
@@ -28,7 +31,17 @@ public class MarketDataClientService : IAsyncDisposable
             return;
 
         _hubConnection = new HubConnectionBuilder()
-            .WithUrl(_navigationManager.ToAbsoluteUri("/hubs/market"))
+            .WithUrl(_navigationManager.ToAbsoluteUri("/hubs/market"), options => {
+                options.AccessTokenProvider = async () => 
+                {
+                    var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+                    if (string.IsNullOrWhiteSpace(token))
+                    {
+                        token = await _jsRuntime.InvokeAsync<string>("sessionStorage.getItem", "authToken");
+                    }
+                    return token;
+                };
+            })
             .WithAutomaticReconnect()
             .Build();
 

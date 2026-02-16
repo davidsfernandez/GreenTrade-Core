@@ -1,8 +1,9 @@
-.git
-.vscode
-.vs
-bin
-obj
-docker-compose*
-.dockerignore
-Dockerfile
+**/.git
+**/.vs
+**/bin
+**/obj
+**/.vscode
+build.log
+docker-compose.override.yml
+*.user
+*.sln.dotSettings

@@ -27,9 +27,13 @@ public class OfferService
         return await _http.GetFromJsonAsync<List<OfferDto>>("api/offers/received") ?? new List<OfferDto>();
     }
 
-    public async Task RespondToOffer(int offerId, bool accepted)
+    public async Task RespondToOffer(int offerId, UpdateOfferStatusDto response)
     {
-        var response = new UpdateOfferStatusDto { IsAccepted = accepted };
         await _http.PostAsJsonAsync($"api/offers/{offerId}/respond", response);
+    }
+
+    public async Task CancelOffer(int offerId)
+    {
+        await _http.DeleteAsync($"api/offers/{offerId}");
     }
 }

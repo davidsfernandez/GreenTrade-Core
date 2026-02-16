@@ -16,6 +16,30 @@ public static class TechnicalIndicatorsService
         return new MarketRecommendation { Type = RecommendationType.Neutral, Message = "Neutro", Color = "secondary", RSI = rsi };
     }
 
+    /// <summary>
+    /// Returns a suggestion factor based on RSI to adjust the "Fair Price".
+    /// High RSI (>70) suggests market is overbought (good for sellers to ask for more).
+    /// Low RSI (<30) suggests market is oversold (good for buyers to offer less).
+    /// </summary>
+    public static decimal GetPriceAdjustmentFactor(decimal rsi)
+    {
+        if (rsi >= 70) return 1.02m; // Suggest 2% higher for sellers
+        if (rsi <= 30 && rsi > 0) return 0.98m; // Suggest 2% lower for buyers
+        return 1.0m; // Neutral
+    }
+
+    public static (decimal Support, decimal Resistance) CalculateSupportResistance(List<decimal> prices)
+    {
+        if (prices == null || prices.Count < 2) return (0, 0);
+
+        // Simple implementation: Min and Max of the recent period
+        // A more advanced one would use Pivot Points or Price Action peaks.
+        decimal support = prices.Min();
+        decimal resistance = prices.Max();
+
+        return (support, resistance);
+    }
+
     public static List<decimal> CalculateSMA(List<decimal> prices, int period)
     {
         var sma = new List<decimal>();

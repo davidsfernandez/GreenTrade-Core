@@ -10,6 +10,7 @@ public interface IUserService
 {
     Task<IEnumerable<UserDto>> GetUsers();
     Task<UserDto?> GetUserById(int id);
+    Task<UserDto?> GetProfile();
     Task<bool> UpdateProfile(UpdateProfileRequest request);
     Task<ApiResponse<string>> ChangePassword(ChangePasswordRequest request);
 }
@@ -48,9 +49,21 @@ public class UserService : IUserService
         }
     }
 
+    public async Task<UserDto?> GetProfile()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<UserDto>("api/users/me");
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     public async Task<bool> UpdateProfile(UpdateProfileRequest request)
     {
-        var response = await _httpClient.HttpPutAsJsonAsync("api/users/profile", request);
+        var response = await _httpClient.PutAsJsonAsync("api/users/profile", request);
         return response.IsSuccessStatusCode;
     }
 

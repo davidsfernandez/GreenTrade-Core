@@ -118,26 +118,10 @@
 
     private async Task LoadUserData()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        if (user.Identity?.IsAuthenticated == true)
+        _user = await UserService.GetProfile();
+        if (_user != null)
         {
-            // We could fetch from API or parse claims
-            // Let's fetch from API to get the latest data
-            var email = user.FindFirst(ClaimTypes.Email)?.Value;
-            if (!string.IsNullOrEmpty(email))
-            {
-                // We need a GetCurrentUserInfo method in UserService or use AuthController/me
-                // For now, let's assume we can get it by parsing claims or adding a method
-                _user = new UserDto
-                {
-                    FullName = user.Identity.Name ?? "Usuário",
-                    Email = email,
-                    Role = user.FindFirst(ClaimTypes.Role)?.Value ?? "Buyer"
-                };
-                _updateRequest.FullName = _user.FullName;
-            }
+            _updateRequest.FullName = _user.FullName;
         }
     }
 

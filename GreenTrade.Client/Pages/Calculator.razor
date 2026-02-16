@@ -1,0 +1,79 @@
+@page "/calculator"
+@using GreenTrade.Client.Components
+@using GreenTrade.Client.Services
+@using GreenTrade.Shared.DTOs
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject MarketDataClientService MarketService
+
+<PageTitle>Calculadora de Preço Justo - GreenTrade</PageTitle>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4 class="mb-1">Calculadora Proprietária</h4>
+                <p class="text-muted">Converta preços de Nova Iorque (ICE) para a realidade do mercado brasileiro instantaneamente.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <PriceCalculator 
+            CurrentArabica="@arabicaPrice" 
+            CurrentDollar="@dollarPrice" 
+            CurrentRSI="@currentRSI" />
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Como funciona?</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item px-0">
+                        <small class="fw-bold d-block">Conversão:</small>
+                        <span class="text-muted">NY (cts/lb) -> USD/Saca -> BRL/Saca.</span>
+                    </li>
+                    <li class="list-group-item px-0">
+                        <small class="fw-bold d-block">Diferencial (Basis):</small>
+                        <span class="text-muted">Ajuste regional definido pela mesa de operações.</span>
+                    </li>
+                    <li class="list-group-item px-0">
+                        <small class="fw-bold d-block">Inteligência:</small>
+                        <span class="text-muted">Sugerimos ágios ou descontos baseados no RSI técnico.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private decimal arabicaPrice = 185.50m;
+    private decimal dollarPrice = 5.25m;
+    private decimal currentRSI = 50m;
+
+    protected override void OnInitialized()
+    {
+        MarketService.OnPriceUpdate += HandlePriceUpdate;
+    }
+
+    private void HandlePriceUpdate(PriceUpdateDto update)
+    {
+        if (update.Ticker == "KC") arabicaPrice = update.CurrentPrice;
+        if (update.Ticker == "USDBRL") dollarPrice = update.CurrentPrice;
+        
+        // Note: RSI would ideally come from a more complex data stream, 
+        // but for now we sync with current prices.
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        MarketService.OnPriceUpdate -= HandlePriceUpdate;
+    }
+}

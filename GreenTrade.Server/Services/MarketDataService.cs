@@ -1,8 +1,10 @@
+using GreenTrade.Server.Data;
 using GreenTrade.Server.Hubs;
 using GreenTrade.Server.Services.Providers;
 using GreenTrade.Shared.DTOs;
 using GreenTrade.Shared.Services;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace GreenTrade.Server.Services;
 
@@ -47,8 +49,15 @@ public class MarketDataService : BackgroundService
                 {
                     var provider = scope.ServiceProvider.GetRequiredService<IMarketDataProvider>();
                     var alertService = scope.ServiceProvider.GetRequiredService<IPriceAlertService>();
+                    var calculator = scope.ServiceProvider.GetRequiredService<IPriceCalculatorService>();
+                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+                    var settings = await context.MarketSettings.FirstOrDefaultAsync(stoppingToken);
                     var quotes = await provider.GetLatestQuotesAsync(_tickersToWatch);
+
+                    // Get specific rates for composite calculation
+                    quotes.TryGetValue("KC", out var arabica);
+                    quotes.TryGetValue("USDBRL", out var dollar);
 
                     foreach (var quote in quotes.Values)
                     {
@@ -59,21 +68,22 @@ public class MarketDataService : BackgroundService
 
                         // Broadcast Price
                         await _hubContext.Clients.Group("GlobalMarket").SendAsync("ReceivePriceUpdate", quote, stoppingToken);
-                        await _hubContext.Clients.Group(quote.Ticker).SendAsync("ReceivePriceUpdate", quote, stoppingToken);
 
-                        // Check "Janela de Venda" logic
-                        if (history.Count >= Period)
+                        // ADVANCED LOGIC: Sales Window (Janela de Venda)
+                        if (quote.Ticker == "KC" && arabica != null && dollar != null && settings != null)
                         {
-                            var rsiValues = TechnicalIndicatorsService.CalculateRSI(history, Period);
-                            var currentRSI = rsiValues.Last();
-
-                            if (currentRSI >= 70)
+                            var currentBagPrice = calculator.CalculateCoffeeBagPrice(arabica.CurrentPrice, dollar.CurrentPrice, settings.CoffeeBasis);
+                            
+                            if (history.Count >= Period)
                             {
-                                await _hubContext.Clients.Group("GlobalMarket").SendAsync("ReceiveAlert", $"[OPORTUNIDADE] Janela de Venda para {quote.Ticker}: RSI Alto ({currentRSI.ToString("F2")})", stoppingToken);
-                            }
-                            else if (currentRSI <= 30 && currentRSI > 0)
-                            {
-                                await _hubContext.Clients.Group("GlobalMarket").SendAsync("ReceiveAlert", $"[OPORTUNIDADE] Janela de Compra para {quote.Ticker}: RSI Baixo ({currentRSI.ToString("F2")})", stoppingToken);
+                                var rsi = TechnicalIndicatorsService.CalculateRSI(history, Period).Last();
+                                
+                                // Logic: High RSI + Good Price = Sell Window
+                                if (rsi >= 70)
+                                {
+                                    var msg = $"[OPORTUNIDADE] Janela de Venda: Preço atingiu {currentBagPrice:C2} com RSI de {rsi:F1}. Momento ideal para fixação.";
+                                    await _hubContext.Clients.Group("GlobalMarket").SendAsync("ReceiveAlert", msg, stoppingToken);
+                                }
                             }
                         }
 

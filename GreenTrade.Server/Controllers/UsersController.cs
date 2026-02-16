@@ -58,6 +58,24 @@ public class UsersController : ControllerBase
         });
     }
 
+    [HttpGet("me")]
+    public async Task<ActionResult<UserDto>> GetCurrentUser()
+    {
+        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(email)) return Unauthorized();
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null) return NotFound();
+
+        return Ok(new UserDto
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            Role = user.Role.ToString()
+        });
+    }
+
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
     {

@@ -35,7 +35,11 @@
         </div>
 
         <div class="mt-4 p-4 rounded text-center" style="background-color: #f1f8e9; border: 2px dashed #c5e1a5;">
-            <h6 class="text-muted text-uppercase mb-2 small fw-bold">Preço Sugerido por Saca</h6>
+            <h6 class="text-muted text-uppercase mb-2 small fw-bold">
+                @if (AdjustmentFactor > 1.0m) { <span class="text-success"><i class="bx bx-trending-up"></i> Sugestão: Ágio de Alta</span> }
+                else if (AdjustmentFactor < 1.0m) { <span class="text-danger"><i class="bx bx-trending-down"></i> Sugestão: Desconto de Baixa</span> }
+                else { <span>Preço Justo Sugerido</span> }
+            </h6>
             <div class="d-flex justify-content-center align-items-center">
                 <h2 class="text-success display-4 fw-bold mb-0">@Formatter.FormatCurrency(Result)</h2>
                 <button class="btn btn-link text-success ms-2 p-0" @onclick="CopyResult" title="Copiar resultado">
@@ -50,12 +54,14 @@
 @code {
     [Parameter] public decimal CurrentArabica { get; set; }
     [Parameter] public decimal CurrentDollar { get; set; }
+    [Parameter] public decimal CurrentRSI { get; set; }
 
     private decimal nyPrice;
     private decimal dollarRate;
     private decimal basis;
 
-    private decimal Result => Calculator.CalculateCoffeeBagPrice(nyPrice, dollarRate, basis);
+    private decimal AdjustmentFactor => TechnicalIndicatorsService.GetPriceAdjustmentFactor(CurrentRSI);
+    private decimal Result => Calculator.CalculateCoffeeBagPrice(nyPrice, dollarRate, basis, AdjustmentFactor);
 
     protected override async Task OnInitializedAsync()
     {
