@@ -44,6 +44,8 @@ public class MarketSettingsController : ControllerBase
         {
             existing.CoffeeBasis = settings.CoffeeBasis;
             existing.ServiceFeePercentage = settings.ServiceFeePercentage;
+            existing.RsiOverboughtThreshold = settings.RsiOverboughtThreshold;
+            existing.RsiOversoldThreshold = settings.RsiOversoldThreshold;
             existing.UpdatedAt = DateTime.UtcNow;
         }
 

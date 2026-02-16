@@ -79,9 +79,14 @@ public class MarketDataService : BackgroundService
                                 var rsi = TechnicalIndicatorsService.CalculateRSI(history, Period).Last();
                                 
                                 // Logic: High RSI + Good Price = Sell Window
-                                if (rsi >= 70)
+                                if (rsi >= settings.RsiOverboughtThreshold)
                                 {
                                     var msg = $"[OPORTUNIDADE] Janela de Venda: Preço atingiu {currentBagPrice:C2} com RSI de {rsi:F1}. Momento ideal para fixação.";
+                                    await _hubContext.Clients.Group("GlobalMarket").SendAsync("ReceiveAlert", msg, stoppingToken);
+                                }
+                                else if (rsi <= settings.RsiOversoldThreshold && rsi > 0)
+                                {
+                                    var msg = $"[OPORTUNIDADE] Janela de Compra: RSI de {rsi:F1}. Preço sugerido: {currentBagPrice:C2}.";
                                     await _hubContext.Clients.Group("GlobalMarket").SendAsync("ReceiveAlert", msg, stoppingToken);
                                 }
                             }

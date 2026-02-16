@@ -41,9 +41,25 @@
                             
                             <div class="mb-3">
                                 <label class="form-label">Taxa de Serviço (%)</label>
-                                <InputNumber @bind-Value="_settings.ServiceFeePercentage" class="form-control" step="0.01" />
+                                <input type="number" @bind="_settings.ServiceFeePercentage" class="form-control" step="0.01" />
                                 <div class="form-text">Margem da plataforma sobre as negociações.</div>
                                 <ValidationMessage For="@(() => _settings.ServiceFeePercentage)" />
+                            </div>
+
+                            <hr class="my-4" />
+                            <h5 class="mb-3">Algoritmo de Oportunidade (RSI)</h5>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Threshold de Sobrecompra (Venda)</label>
+                                    <input type="number" @bind="_settings.RsiOverboughtThreshold" class="form-control" step="1" />
+                                    <div class="form-text">Sugere venda quando RSI > X (Padrão: 70).</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Threshold de Sobrevenda (Compra)</label>
+                                    <input type="number" @bind="_settings.RsiOversoldThreshold" class="form-control" step="1" />
+                                    <div class="form-text">Sugere compra quando RSI < X (Padrão: 30).</div>
+                                </div>
                             </div>
 
                             <button type="submit" class="btn btn-primary w-100 mt-3" disabled="@_isSaving">

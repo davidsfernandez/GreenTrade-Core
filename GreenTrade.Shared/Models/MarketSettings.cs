@@ -15,5 +15,8 @@ public class MarketSettings
     
     public decimal ServiceFeePercentage { get; set; } = 0.5m; // Example fee
 
+    public decimal RsiOverboughtThreshold { get; set; } = 70m; // Threshold for Sell Window
+    public decimal RsiOversoldThreshold { get; set; } = 30m;  // Threshold for Buy Window
+
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
