@@ -11,21 +11,34 @@ public class PriceCalculatorTests
     public void CalculateCoffeeBagPrice_StandardValues_ReturnsCorrectPrice()
     {
         // Arrange
-        // Price NY: 185.50 cts/lb
-        // USD/BRL: 5.25
-        // Basis: -10.00 BRL
         decimal priceNy = 185.50m;
         decimal dollar = 5.25m;
         decimal basis = -10.00m;
 
-        // Formula: (185.50 / 100) * 132.2762 * 5.25 - 10
-        // (1.8550 * 132.2762 * 5.25) - 10
-        // (245.3723... * 5.25) - 10
-        // 1288.204... - 10 = 1278.204...
+        // Formula: (1.8550 * 132.2762 * 5.25) - 10 = 1278.204...
         decimal expected = 1278.20m;
 
         // Act
         decimal actual = _calculator.CalculateCoffeeBagPrice(priceNy, dollar, basis);
+
+        // Assert
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void CalculateCoffeeBagPrice_WithAdjustment_ReturnsAdjustedPrice()
+    {
+        // Arrange
+        decimal priceNy = 100.00m; // 1.00 USD/lb
+        decimal dollar = 5.00m;
+        decimal basis = 0m;
+        decimal adjustment = 1.10m; // +10% premium
+
+        // (1.00 * 132.2762 * 5.00) * 1.10 = 661.381 * 1.10 = 727.5191
+        decimal expected = 727.52m;
+
+        // Act
+        decimal actual = _calculator.CalculateCoffeeBagPrice(priceNy, dollar, basis, adjustment);
 
         // Assert
         Assert.Equal(expected, actual);
